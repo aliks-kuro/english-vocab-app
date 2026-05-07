@@ -35,7 +35,12 @@ export default function MyWordList() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-900 pb-24">
+    <div className="min-h-screen pb-24" style={{ background: `
+      radial-gradient(ellipse at 15% 15%,  rgba(124, 58,237,0.50) 0%, transparent 42%),
+      radial-gradient(ellipse at 85% 18%,  rgba(245,158, 11,0.28) 0%, transparent 36%),
+      radial-gradient(ellipse at 80% 78%,  rgba( 99,102,241,0.30) 0%, transparent 40%),
+      radial-gradient(ellipse at 18% 80%,  rgba( 16,185,129,0.18) 0%, transparent 38%),
+      #07070f` }}>
       {/* Header */}
       <div className="px-4 pt-8 pb-4">
         <h1 className="text-2xl font-bold text-white">マイ単語リスト</h1>

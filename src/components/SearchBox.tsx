@@ -76,15 +76,16 @@ export default function SearchBox() {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <form onSubmit={handleSearch} className="relative">
-        <div className="flex items-center glass rounded-2xl px-4 py-3 gap-3 focus-within:border-indigo-500 border border-white/10 transition-all">
-          <span className="text-xl">🔍</span>
+        <div className="flex items-center glass rounded-2xl px-4 py-4 gap-3 focus-within:border-indigo-400 border border-white/15 transition-all"
+          style={{ boxShadow: '0 2px 20px rgba(99,102,241,0.15)' }}>
+          <span className="text-2xl">🔍</span>
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="英単語を検索..."
-            className="flex-1 bg-transparent outline-none text-white placeholder-slate-500 text-lg"
+            className="flex-1 bg-transparent outline-none text-white placeholder-slate-400 text-xl"
           />
           <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
             <div
@@ -99,12 +100,17 @@ export default function SearchBox() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-base font-medium transition-all disabled:opacity-50"
           >
-            {loading ? '...' : '検索'}
+            {loading ? '…' : '検索'}
           </button>
         </div>
       </form>
+
+      {/* Auto-add explanation */}
+      <p className="text-xs mt-2 px-1 leading-relaxed" style={{ color: 'rgba(165,180,252,0.65)' }}>
+        <span style={{ color: 'rgba(165,180,252,0.9)' }}>自動追加</span>にチェックが入っていると、検索した単語を自動でマイリストに追加します。チェックを外すと追加されません。
+      </p>
 
       <AnimatePresence>
         {error && (

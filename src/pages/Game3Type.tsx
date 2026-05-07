@@ -134,7 +134,12 @@ function drawDungeon(ctx: CanvasRenderingContext2D, W: number, H: number, scroll
 /* ── Level Select ───────────────────────────────────────────── */
 function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelDef) => void }) {
   return (
-    <div className="min-h-screen pb-24 px-4 pt-8" style={{ background: 'radial-gradient(ellipse at top, #0d0428 0%, #030210 100%)' }}>
+    <div className="min-h-screen pb-24 px-4 pt-8" style={{ background: `
+      radial-gradient(ellipse at 15% 10%, rgba(124, 58,237,0.50) 0%, transparent 40%),
+      radial-gradient(ellipse at 85% 10%, rgba( 30, 64,175,0.42) 0%, transparent 38%),
+      radial-gradient(ellipse at 80% 85%, rgba(217, 70,239,0.28) 0%, transparent 40%),
+      radial-gradient(ellipse at 15% 85%, rgba(  6,182,212,0.22) 0%, transparent 38%),
+      #06060f` }}>
       <div className="text-center mb-6">
         <h1 className="text-3xl font-black text-white" style={{ textShadow: '0 0 24px rgba(167,139,250,0.6)' }}>
           ダンジョン・タイピング
@@ -192,10 +197,13 @@ export default function Game3Type() {
   const [timeLeft, setTimeLeft] = useState(20);
   const [status, setStatus] = useState<'fighting' | 'correct' | 'wrong' | 'timeout'>('fighting');
   const [showHint, setShowHint] = useState(false);
+  const [showBigX, setShowBigX] = useState(false);
+  const [showBigO, setShowBigO] = useState(false);
   const [attackAnim, setAttackAnim] = useState<{ word: string; id: number } | null>(null);
   const [monsterHit, setMonsterHit] = useState(false);
   const [playerHit, setPlayerHit] = useState(false);
   const [monsterHp, setMonsterHp] = useState(100);
+  const [monsterAttacking, setMonsterAttacking] = useState(false);
 
   // Refs (closure-safe)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -280,6 +288,10 @@ export default function Game3Type() {
     setPlayerHit(true); setTimeout(() => setPlayerHit(false), 700);
     const st = reason === 'timeout' ? 'timeout' : 'wrong';
     setStatus(st); statusRef.current = st;
+    if (reason === 'timeout') {
+      setMonsterAttacking(true);
+      setTimeout(() => setMonsterAttacking(false), 800);
+    }
     if (newHp <= 0) {
       hpRef.current = 0; setHp(0);
       // timeout: show answer first, then defeat on Enter
@@ -321,10 +333,15 @@ export default function Game3Type() {
       setAttackAnim({ word: current.word, id: Date.now() });
       setMonsterHit(true); setTimeout(() => setMonsterHit(false), 500);
       monsterHpRef.current = 0; setMonsterHp(0);
+      setShowBigO(true); setTimeout(() => setShowBigO(false), 900);
       setStatus('correct'); statusRef.current = 'correct';
       setTimeout(() => beginQ(qIdxRef.current + 1, deckRef.current, levelRef.current), 1600);
+      return;
     }
-    // wrong: no immediate action (timeout will penalize)
+    // wrong: show × mark, clear input, no HP penalty
+    setShowBigX(true);
+    setInput('');
+    setTimeout(() => setShowBigX(false), 700);
   }
 
   /* ── Phase: level select ── */
@@ -337,7 +354,13 @@ export default function Game3Type() {
     const win = phase === 'victory';
     return (
       <div className="min-h-screen flex items-center justify-center px-4 pb-24"
-        style={{ background: win ? 'radial-gradient(ellipse at top, #0d2808, #030210)' : 'radial-gradient(ellipse at top, #280808, #030210)' }}>
+        style={{ background: win
+          ? `radial-gradient(ellipse at 50% 10%, rgba(16,185,129,0.35) 0%, transparent 50%),
+             radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.20) 0%, transparent 40%),
+             #04100a`
+          : `radial-gradient(ellipse at 50% 10%, rgba(220,38,38,0.35) 0%, transparent 50%),
+             radial-gradient(ellipse at 20% 80%, rgba(124,58,237,0.25) 0%, transparent 40%),
+             #100404` }}>
         <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="glass rounded-2xl p-8 text-center max-w-sm w-full">
           <div className="text-6xl mb-3">{win ? '🏆' : '💀'}</div>
@@ -370,10 +393,18 @@ export default function Game3Type() {
   const timerPct = (timeLeft / level.timeLimit) * 100;
   const timerColor = timerPct > 50 ? level.color : timerPct > 25 ? '#fbbf24' : '#f87171';
   const comboMult = combo >= 6 ? '×3.0' : combo >= 4 ? '×2.0' : combo >= 2 ? '×1.5' : null;
+  const rawTimeProgress = level.timeLimit > 0 ? Math.max(0, Math.min(1, 1 - timeLeft / level.timeLimit)) : 0;
+  const approachScale = 1 + rawTimeProgress * 1.5;
+  const approachY = rawTimeProgress * 28;
 
   return (
-    <div className="min-h-screen flex flex-col pb-24 overflow-hidden relative select-none"
-      style={{ background: 'radial-gradient(ellipse at top, #08031a 0%, #030210 100%)' }}>
+    <div className="min-h-screen flex flex-col pb-24 overflow-hidden relative select-none" style={{ background: `
+      radial-gradient(ellipse at 50%  0%,  rgba(180, 50, 30,0.32) 0%, transparent 45%),
+      radial-gradient(ellipse at 10% 50%,  rgba(180, 90, 20,0.22) 0%, transparent 35%),
+      radial-gradient(ellipse at 90% 50%,  rgba(180, 90, 20,0.22) 0%, transparent 35%),
+      radial-gradient(ellipse at 50% 100%, rgba( 80, 20,160,0.45) 0%, transparent 50%),
+      radial-gradient(ellipse at 50%  50%, rgba( 20, 10, 60,0.70) 0%, transparent 55%),
+      #030210` }}>
 
       {/* Player damage flash */}
       <AnimatePresence>
@@ -423,7 +454,7 @@ export default function Game3Type() {
         {/* Monster */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <motion.div
-            animate={monsterHit ? { x: [-8, 8, -6, 6, 0], scale: [1, 1.1, 1] } : {}}
+            animate={monsterHit && status !== 'correct' ? { x: [-8, 8, -6, 6, 0], scale: [1, 1.1, 1] } : {}}
             transition={{ duration: 0.4 }}>
             <div className="relative">
               {/* Monster HP bar */}
@@ -432,13 +463,35 @@ export default function Game3Type() {
                   animate={{ width: `${monsterHp}%` }}
                   style={{ background: `linear-gradient(90deg, ${level.color}, ${level.color}99)` }} />
               </div>
-              <div className="text-7xl" style={{
-                filter: `drop-shadow(0 0 20px ${level.color}99)`,
-                opacity: status === 'correct' ? 0.3 : 1,
-                transition: 'opacity 0.3s',
-              }}>{level.emoji}</div>
+              {/* Monster emoji — death animation on correct */}
+              <motion.div
+                className="text-7xl flex items-center justify-center"
+                animate={
+                  status === 'correct' ? {
+                    scale:   [approachScale, approachScale * 1.25, approachScale * 0.8, 0.3, 0],
+                    rotate:  [0, -12, 15, 45, 180],
+                    y:       [approachY, approachY - 15, approachY - 8, -45, -90],
+                    opacity: [1, 1, 1, 0.5, 0],
+                  } : monsterAttacking ? {
+                    scale:   [approachScale, approachScale * 1.6, approachScale * 1.9, approachScale * 1.1, approachScale],
+                    y:       [approachY, approachY + 25, approachY + 55, approachY + 18, approachY],
+                    rotate:  [0, -12, 12, -6, 0],
+                  } : {
+                    scale: approachScale,
+                    y: approachY,
+                  }
+                }
+                transition={
+                  status === 'correct' || monsterAttacking
+                    ? { duration: status === 'correct' ? 0.75 : 0.7, ease: 'easeInOut' }
+                    : { duration: 0.9, ease: 'linear' }
+                }
+                style={{ filter: `drop-shadow(0 0 20px ${level.color}99)` }}
+              >
+                {level.emoji}
+              </motion.div>
               {/* Hit flash */}
-              {monsterHit && (
+              {monsterHit && status !== 'correct' && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-2xl font-black text-yellow-300"
                     style={{ textShadow: '0 0 20px rgba(255,200,50,1)' }}>
@@ -449,6 +502,42 @@ export default function Game3Type() {
             </div>
           </motion.div>
         </div>
+
+        {/* Correct ○ mark */}
+        <AnimatePresence>
+          {showBigO && (
+            <motion.div
+              initial={{ scale: 0.2, opacity: 0 }}
+              animate={{ scale: 1.1, opacity: 1 }}
+              exit={{ scale: 1.8, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+            >
+              <span style={{
+                fontSize: '9rem', lineHeight: 1, fontWeight: 900, color: '#22c55e',
+                textShadow: '0 0 40px rgba(34,197,94,1), 0 0 80px rgba(34,197,94,0.6)',
+              }}>○</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Wrong input × mark */}
+        <AnimatePresence>
+          {showBigX && (
+            <motion.div
+              initial={{ scale: 0.1, opacity: 0 }}
+              animate={{ scale: 1.1, opacity: 1 }}
+              exit={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+            >
+              <span style={{
+                fontSize: '9rem', lineHeight: 1, fontWeight: 900, color: '#ef4444',
+                textShadow: '0 0 40px rgba(239,68,68,1), 0 0 80px rgba(239,68,68,0.5)',
+              }}>✕</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Attack text animation */}
         <AnimatePresence>

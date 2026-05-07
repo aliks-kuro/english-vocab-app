@@ -10,8 +10,13 @@ interface Tile {
 }
 
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
-const TIME_LIMIT = 30;
+const BASE_TIME = 30; // ≤4文字の基準時間
 const MAX_LIVES = 5;
+
+function timeLimitForWord(word: string): number {
+  const extra = Math.max(0, word.length - 4);
+  return BASE_TIME + extra * 5; // 5文字→35s, 6文字→40s, ...
+}
 
 export default function Game1Anagram() {
   const navigate = useNavigate();
@@ -20,13 +25,14 @@ export default function Game1Anagram() {
   const [questionIdx, setQuestionIdx] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
+  const [timeLeft, setTimeLeft] = useState(BASE_TIME);
   const [gameStatus, setGameStatus] = useState<'playing' | 'correct' | 'timeout' | 'gameover' | 'finished'>('playing');
   const [showBigX, setShowBigX] = useState(false);
   const [shakeLives, setShakeLives] = useState(false);
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [selectedChars, setSelectedChars] = useState<string[]>([]);
+  const [showCorrectO, setShowCorrectO] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const animRef = useRef<number | null>(null);
@@ -42,7 +48,8 @@ export default function Game1Anagram() {
   const statusRef = useRef<typeof gameStatus>('playing');
   const selectedRef = useRef<string[]>([]);
   const targetWordRef = useRef('');
-  const timeLeftRef = useRef(TIME_LIMIT);
+  const timeLeftRef = useRef(BASE_TIME);
+  const timeLimitRef = useRef(BASE_TIME); // current question's limit
   const scoreRef = useRef(0);
 
   useEffect(() => {
@@ -94,8 +101,13 @@ export default function Game1Anagram() {
     const extraCount = Math.max(8, wordChars.length + 4);
     const extras = Array.from({ length: extraCount }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]);
 
+    // Add one guaranteed extra copy of every unique letter in the word
+    const uniqueWordChars = [...new Set(wordChars)];
+    const dupeChars = uniqueWordChars.map((c, i) => ({ id: `dup${i}-${rnd()}`, char: c }));
+
     const allTiles: Tile[] = shuffle([
       ...wordChars.map((c, i) => ({ id: `w${i}-${rnd()}`, char: c })),
+      ...dupeChars,
       ...extras.map((c, i) => ({ id: `e${i}-${rnd()}`, char: c })),
     ]);
 
@@ -111,12 +123,15 @@ export default function Game1Anagram() {
       physicsRef.current.set(tile.id, { x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd });
     }
 
+    const tl = timeLimitForWord(word);
+    timeLimitRef.current = tl;
+
     setTiles(allTiles);
     setRemovedIds(new Set());
     setSelectedChars([]);
     selectedRef.current = [];
-    setTimeLeft(TIME_LIMIT);
-    timeLeftRef.current = TIME_LIMIT;
+    setTimeLeft(tl);
+    timeLeftRef.current = tl;
     setGameStatus('playing'); statusRef.current = 'playing';
 
     clearTimer();
@@ -163,6 +178,8 @@ export default function Game1Anagram() {
       selectedRef.current = newSelected;
       setSelectedChars([...newSelected]);
       setRemovedIds((prev) => new Set([...prev, tile.id]));
+      setShowCorrectO(true);
+      setTimeout(() => setShowCorrectO(false), 500);
 
       if (newSelected.length === target.length) {
         // Word complete!
@@ -200,7 +217,7 @@ export default function Game1Anagram() {
   function restartGame() {
     livesRef.current = MAX_LIVES; qIdxRef.current = 0;
     selectedRef.current = []; targetWordRef.current = '';
-    timeLeftRef.current = TIME_LIMIT; statusRef.current = 'playing';
+    timeLeftRef.current = BASE_TIME; timeLimitRef.current = BASE_TIME; statusRef.current = 'playing';
     scoreRef.current = 0;
     setLives(MAX_LIVES); setScore(0); setQuestionIdx(0); setShowBigX(false);
     shuffledWords.current = [...words].sort(() => Math.random() - 0.5);
@@ -255,7 +272,7 @@ export default function Game1Anagram() {
   }
 
   const currentWordData = shuffledWords.current[questionIdx];
-  const timerPct = (timeLeft / TIME_LIMIT) * 100;
+  const timerPct = (timeLeft / timeLimitRef.current) * 100;
   const displayLives = Math.max(0, lives);
 
   return (
@@ -343,6 +360,24 @@ export default function Game1Anagram() {
               <span style={{ fontSize: '11rem', lineHeight: 1, fontWeight: 900, color: '#ef4444',
                 textShadow: '0 0 40px rgba(239,68,68,1), 0 0 80px rgba(239,68,68,0.6), 0 0 160px rgba(239,68,68,0.3)' }}>
                 ✕
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Correct ○ */}
+        <AnimatePresence>
+          {showCorrectO && (
+            <motion.div
+              initial={{ scale: 0.2, opacity: 0 }}
+              animate={{ scale: 1.1, opacity: 1 }}
+              exit={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+            >
+              <span style={{ fontSize: '11rem', lineHeight: 1, fontWeight: 900, color: '#22c55e',
+                textShadow: '0 0 40px rgba(34,197,94,1), 0 0 80px rgba(34,197,94,0.6), 0 0 160px rgba(34,197,94,0.3)' }}>
+                ○
               </span>
             </motion.div>
           )}

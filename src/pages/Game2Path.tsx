@@ -231,51 +231,81 @@ function drawOptionSigns(
 }
 
 /* ══════════════════════════════════════════
-   Broken rail gap drawn on wrong lanes during running phase
+   Pitfall drawn on wrong lanes during running phase
 ══════════════════════════════════════════ */
 function drawBrokenRails(
   ctx: CanvasRenderingContext2D,
   VP: { x: number; y: number }, GY: number, GAUGE: number,
-  laneCount: number, selectedLane: number, correctIdx: number,
-  revealT: number, // 0-1
+  laneCount: number, _selectedLane: number, correctIdx: number,
+  revealT: number,
 ) {
   const SPLIT = 0.52;
-  const getX = (t: number, n: number) => VP.x + n * GAUGE * t;
   const getY = (t: number) => VP.y + (GY - VP.y) * t;
+  const gapT = SPLIT * 0.45;
+  const gapAlpha = Math.min(1, revealT * 2.5);
 
   for (let i = 0; i < laneCount; i++) {
-    if (i === correctIdx) continue; // correct lane stays intact
+    if (i === correctIdx) continue;
+
     const lnN = ((i + 0.5) / laneCount - 0.5) * 2.2;
     const hw = 0.5 / laneCount;
+    const cx = VP.x + lnN * GAUGE * gapT;
+    const cy = getY(gapT);
+    // Left/right rail positions at the gap
+    const lrX = VP.x + (lnN - hw) * GAUGE * gapT;
+    const rrX = VP.x + (lnN + hw) * GAUGE * gapT;
+    const pitW = Math.max(12, (rrX - lrX) * 1.5);
+    const pitH = pitW * 0.55;
 
-    // Gap position along the branch: 55% from split toward VP
-    const gapT = SPLIT * 0.45;
-    const gapAlpha = Math.min(1, revealT * 2);
+    ctx.globalAlpha = gapAlpha;
 
-    for (const off of [-hw, hw]) {
-      const bxC = getX(SPLIT, lnN + off);
+    // Dark abyss fill
+    const abyssGrad = ctx.createRadialGradient(cx, cy + pitH * 0.15, 0, cx, cy, pitW);
+    abyssGrad.addColorStop(0, 'rgba(180,10,0,0.35)');
+    abyssGrad.addColorStop(0.3, 'rgba(0,0,0,0.98)');
+    abyssGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = abyssGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, pitW, pitH, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-      // Draw gap (missing section)
-      const gapX = VP.x + (bxC - VP.x) * (gapT / SPLIT);
-      const gapY = getY(gapT);
-      const gapW = 18 * (gapT / SPLIT);
+    // Pit rim glow
+    ctx.shadowBlur = 14; ctx.shadowColor = 'rgba(239,68,68,0.8)';
+    ctx.strokeStyle = 'rgba(239,68,68,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, pitW * 0.85, pitH * 0.7, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
 
-      // Red X warning
-      ctx.globalAlpha = gapAlpha;
-      ctx.strokeStyle = '#f87171';
-      ctx.lineWidth = 2.5;
-      ctx.shadowBlur = 12; ctx.shadowColor = '#f87171';
-      ctx.beginPath();
-      ctx.moveTo(gapX - gapW / 2, gapY - 5);
-      ctx.lineTo(gapX + gapW / 2, gapY + 5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(gapX + gapW / 2, gapY - 5);
-      ctx.lineTo(gapX - gapW / 2, gapY + 5);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-    }
+    // Broken left rail end (jagged teeth)
+    ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 2;
+    ctx.shadowBlur = 8; ctx.shadowColor = '#f87171';
+    ctx.beginPath();
+    ctx.moveTo(lrX, cy - 2);
+    ctx.lineTo(lrX - 3, cy + 6);
+    ctx.lineTo(lrX + 3, cy + 11);
+    ctx.stroke();
+
+    // Broken right rail end
+    ctx.beginPath();
+    ctx.moveTo(rrX, cy - 2);
+    ctx.lineTo(rrX + 3, cy + 6);
+    ctx.lineTo(rrX - 3, cy + 11);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Warning symbol above pit
+    const iconSize = Math.max(8, Math.round(pitW * 0.55));
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = `bold ${iconSize}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 10; ctx.shadowColor = '#fbbf24';
+    ctx.fillText('⚠', cx, cy - pitH * 0.95);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowBlur = 0;
+
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -470,6 +500,7 @@ export default function Game2Path() {
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
   const [shakeLives, setShakeLives] = useState(false);
   const [wrongWords, setWrongWords] = useState<WrongEntry[]>([]);
+  const [revivalCount, setRevivalCount] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -495,6 +526,7 @@ export default function Game2Path() {
   const runWrongRef = useRef(false);
   // Callback ref to finalize run (avoids stale closure)
   const finalizeRunRef = useRef<(() => void) | null>(null);
+  const revivalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (words.length === 0) { navigate('/'); return; }
@@ -519,7 +551,7 @@ export default function Game2Path() {
       }
     };
     requestAnimationFrame(tryInit);
-    return () => { stopCanvas(); clearTimer(); };
+    return () => { stopCanvas(); clearTimer(); if (revivalTimerRef.current) clearInterval(revivalTimerRef.current); };
   }, []);
 
   function startCanvas() {
@@ -574,6 +606,8 @@ export default function Game2Path() {
   }
 
   function beginQuestion(idx: number, qs: Question[]) {
+    if (revivalTimerRef.current) { clearInterval(revivalTimerRef.current); revivalTimerRef.current = null; }
+    setRevivalCount(null);
     if (idx >= qs.length) { stopCanvas(); setGameStatus('finished'); statusRef.current = 'finished'; return; }
     qIdxRef.current = idx; setQIdx(idx);
     cartTargetRef.current = 0; explodeTRef.current = 0;
@@ -642,12 +676,30 @@ export default function Game2Path() {
       }
     }
     setGameStatus('judging'); statusRef.current = 'judging';
-    setTimeout(() => {
-      judgingRef.current = false;
-      runProgressRef.current = -1;
-      explodeTRef.current = 0;
-      beginQuestion(idx + 1, qs);
-    }, 1600);
+    if (correct) {
+      setTimeout(() => {
+        judgingRef.current = false;
+        runProgressRef.current = -1;
+        explodeTRef.current = 0;
+        beginQuestion(idx + 1, qs);
+      }, 1600);
+    } else {
+      let rCount = 5;
+      setRevivalCount(rCount);
+      const revTick = setInterval(() => {
+        rCount -= 1;
+        setRevivalCount(rCount);
+        if (rCount <= 0) {
+          clearInterval(revTick);
+          revivalTimerRef.current = null;
+          judgingRef.current = false;
+          runProgressRef.current = -1;
+          explodeTRef.current = 0;
+          beginQuestion(idx + 1, qs);
+        }
+      }, 1000);
+      revivalTimerRef.current = revTick;
+    }
   }
 
   const handleSelect = useCallback((lane: number) => {
@@ -681,7 +733,11 @@ export default function Game2Path() {
   if (gameStatus === 'gameover' || gameStatus === 'finished') {
     const isOver = gameStatus === 'gameover';
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 pb-24" style={{ background: '#01010c' }}>
+      <div className="min-h-screen flex items-center justify-center px-4 pb-24" style={{ background: `
+        radial-gradient(ellipse at 50%  0%,  rgba( 99,102,241,0.38) 0%, transparent 50%),
+        radial-gradient(ellipse at  8% 65%,  rgba(  6,182,212,0.22) 0%, transparent 38%),
+        radial-gradient(ellipse at 92% 65%,  rgba(124, 58,237,0.28) 0%, transparent 35%),
+        #03030e` }}>
         <div className="glass rounded-2xl p-8 text-center max-w-sm w-full">
           <div className="text-5xl mb-4">{isOver ? '💥' : '🏆'}</div>
           <h2 className="text-2xl font-bold mb-2" style={{ color: isOver ? '#f87171' : '#fff' }}>
@@ -728,7 +784,12 @@ export default function Game2Path() {
   const isRunning = gameStatus === 'running';
 
   return (
-    <div className="min-h-screen flex flex-col pb-20 select-none" style={{ background: '#010108' }}>
+    <div className="min-h-screen flex flex-col pb-20 select-none" style={{ background: `
+      radial-gradient(ellipse at 50%  0%,  rgba( 99,102,241,0.38) 0%, transparent 50%),
+      radial-gradient(ellipse at  8% 65%,  rgba(  6,182,212,0.22) 0%, transparent 38%),
+      radial-gradient(ellipse at 92% 65%,  rgba(124, 58,237,0.28) 0%, transparent 35%),
+      radial-gradient(ellipse at 50% 100%, rgba(217, 70,239,0.15) 0%, transparent 40%),
+      #03030e` }}>
       {/* Top bar */}
       <div className="px-4 pt-4 flex items-center justify-between shrink-0">
         <motion.div animate={shakeLives ? { x: [-6, 6, -5, 5, 0] } : { x: 0 }} transition={{ duration: 0.4 }} className="flex gap-1.5">
@@ -781,6 +842,28 @@ export default function Game2Path() {
               className="absolute top-2 left-1/2 -translate-x-1/2 text-xs px-3 py-1 rounded-full pointer-events-none"
               style={{ background: 'rgba(0,0,0,0.6)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' }}>
               走行中…
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Revival countdown overlay */}
+        <AnimatePresence>
+          {revivalCount !== null && currentQ && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+              style={{ background: 'rgba(0,0,0,0.72)' }}>
+              <div className="text-red-400 font-bold text-base">✕ 不正解</div>
+              <div className="text-slate-500 text-xs mt-1">正解</div>
+              <div className="text-green-300 font-bold text-center px-6 mt-1 leading-snug" style={{ fontSize: '1.05rem' }}>
+                {currentQ.options[currentQ.correctIdx]}
+              </div>
+              <div className="mt-4 text-xs px-3 py-1.5 rounded-full"
+                style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.5)', color: '#fca5a5' }}>
+                復活まで {revivalCount}秒
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
