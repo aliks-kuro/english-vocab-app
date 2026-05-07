@@ -33,7 +33,7 @@ const LEVELS: LevelDef[] = [
 ];
 
 function monsterImgUrl(lv: LevelDef) {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(lv.imgPrompt)}?width=200&height=200&nologo=true&seed=${lv.lv * 31 + 77}&model=flux`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(lv.imgPrompt)}?width=200&height=200&nologo=true&seed=${lv.lv * 31 + 77}&model=turbo`;
 }
 
 function diffOf(word: string) {
@@ -173,14 +173,15 @@ function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelD
                 boxShadow: `0 0 20px ${lv.color}22`,
               }}>
               {/* Monster image / emoji */}
-              <div className="w-14 h-14 mb-2 flex items-center justify-center">
-                <span className={`text-4xl absolute transition-opacity duration-300 ${loaded ? 'opacity-0' : 'opacity-100'}`}>
+              <div className="relative w-14 h-14 mb-2">
+                <span className={`text-4xl absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${loaded ? 'opacity-0' : 'opacity-100'}`}>
                   {lv.emoji}
                 </span>
                 <img
                   src={monsterImgUrl(lv)}
                   alt={lv.name}
                   onLoad={() => setLoadedLvs(s => new Set([...s, lv.lv]))}
+                  onError={() => {}}
                   className={`w-14 h-14 object-contain transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
                   style={{ filter: `drop-shadow(0 0 6px ${lv.color}88)` }}
                 />
@@ -515,14 +516,15 @@ export default function Game3Type() {
                 }
                 style={{ filter: `drop-shadow(0 0 24px ${level.color}aa)` }}
               >
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <span className={`text-7xl absolute transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
+                <div className="relative w-24 h-24">
+                  <span className={`text-7xl absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
                     {level.emoji}
                   </span>
                   <img
                     src={monsterImgUrl(level)}
                     alt={level.name}
                     onLoad={() => setImgLoaded(true)}
+                    onError={() => setImgLoaded(false)}
                     className={`w-24 h-24 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                   />
                 </div>
