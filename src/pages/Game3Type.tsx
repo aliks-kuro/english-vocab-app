@@ -12,17 +12,29 @@ const HINT_AT = 0.45; // show hint at this fraction of time remaining
 interface LevelDef {
   lv: number; name: string; emoji: string; color: string;
   timeLimit: number; scoreBase: number; description: string;
+  imgPrompt: string;
 }
 
 const LEVELS: LevelDef[] = [
-  { lv: 1, name: 'スライム',   emoji: '🟢', color: '#4ade80', timeLimit: 20, scoreBase: 80,  description: '中学・基礎 (≤4文字)' },
-  { lv: 2, name: 'ゴブリン',   emoji: '👺', color: '#fb923c', timeLimit: 17, scoreBase: 100, description: '一般語彙 (5文字)' },
-  { lv: 3, name: 'スケルトン', emoji: '💀', color: '#e2e8f0', timeLimit: 15, scoreBase: 130, description: '高校・英検準2級 (6文字)' },
-  { lv: 4, name: 'オーク',     emoji: '🐗', color: '#c084fc', timeLimit: 12, scoreBase: 170, description: '英検2級・大学入試 (7-8文字)' },
-  { lv: 5, name: 'ドラゴン',   emoji: '🐲', color: '#f87171', timeLimit: 10, scoreBase: 220, description: '大学・TOEIC700+ (9-10文字)' },
-  { lv: 6, name: 'デーモン',   emoji: '😈', color: '#d946ef', timeLimit:  8, scoreBase: 290, description: '難関大・上級 (11-12文字)' },
-  { lv: 7, name: '魔　王',     emoji: '👿', color: '#fbbf24', timeLimit:  6, scoreBase: 400, description: '専門用語・難読 (13文字以上)' },
+  { lv: 1, name: 'スライム',   emoji: '🟢', color: '#4ade80', timeLimit: 20, scoreBase: 80,  description: '中学・基礎 (≤4文字)',
+    imgPrompt: 'cute translucent green slime blob creature, dark fantasy RPG enemy, pure black background, glowing yellow eyes, gelatinous body' },
+  { lv: 2, name: 'ゴブリン',   emoji: '👺', color: '#fb923c', timeLimit: 17, scoreBase: 100, description: '一般語彙 (5文字)',
+    imgPrompt: 'menacing green goblin warrior monster, dark fantasy RPG enemy, pure black background, sharp fangs, ragged leather armor, orange glow' },
+  { lv: 3, name: 'スケルトン', emoji: '💀', color: '#e2e8f0', timeLimit: 15, scoreBase: 130, description: '高校・英検準2級 (6文字)',
+    imgPrompt: 'undead skeleton warrior monster, dark fantasy RPG enemy, pure black background, glowing blue eye sockets, cracked bones, tattered armor' },
+  { lv: 4, name: 'オーク',     emoji: '🐗', color: '#c084fc', timeLimit: 12, scoreBase: 170, description: '英検2級・大学入試 (7-8文字)',
+    imgPrompt: 'powerful orc berserker monster, dark fantasy RPG enemy, pure black background, large tusks, war paint, purple magical aura, heavy axe' },
+  { lv: 5, name: 'ドラゴン',   emoji: '🐲', color: '#f87171', timeLimit: 10, scoreBase: 220, description: '大学・TOEIC700+ (9-10文字)',
+    imgPrompt: 'fearsome red fire dragon monster, dark fantasy RPG enemy, pure black background, breathing flames, enormous wings spread, glowing red eyes' },
+  { lv: 6, name: 'デーモン',   emoji: '😈', color: '#d946ef', timeLimit:  8, scoreBase: 290, description: '難関大・上級 (11-12文字)',
+    imgPrompt: 'powerful winged demon monster, dark fantasy RPG enemy, pure black background, large curved horns, purple arcane flames, dark wings, sinister' },
+  { lv: 7, name: '魔　王',     emoji: '👿', color: '#fbbf24', timeLimit:  6, scoreBase: 400, description: '専門用語・難読 (13文字以上)',
+    imgPrompt: 'supreme demon king final boss, dark fantasy RPG, pure black background, golden crown, massive dark aura, overwhelming power, divine evil' },
 ];
+
+function monsterImgUrl(lv: LevelDef) {
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(lv.imgPrompt)}?width=200&height=200&nologo=true&seed=${lv.lv * 31 + 77}&model=flux`;
+}
 
 function diffOf(word: string) {
   const l = word.length;
@@ -133,6 +145,8 @@ function drawDungeon(ctx: CanvasRenderingContext2D, W: number, H: number, scroll
 
 /* ── Level Select ───────────────────────────────────────────── */
 function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelDef) => void }) {
+  const [loadedLvs, setLoadedLvs] = useState<Set<number>>(new Set());
+
   return (
     <div className="min-h-screen pb-24 px-4 pt-8" style={{ background: `
       radial-gradient(ellipse at 15% 10%, rgba(124, 58,237,0.50) 0%, transparent 40%),
@@ -148,17 +162,29 @@ function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelD
       </div>
       <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
         {LEVELS.map(lv => {
-          const available = wordsForLevel(words, lv.lv);
           const count = words.filter(w => diffOf(w.word) === lv.lv).length;
+          const loaded = loadedLvs.has(lv.lv);
           return (
             <button key={lv.lv} onClick={() => onSelect(lv)}
-              className="relative rounded-2xl p-4 text-left transition-all active:scale-95 hover:scale-105"
+              className="relative rounded-2xl p-4 text-left transition-all active:scale-95 hover:scale-105 overflow-hidden"
               style={{
                 background: `linear-gradient(135deg, rgba(0,0,0,0.7), rgba(0,0,0,0.5))`,
                 border: `1.5px solid ${lv.color}44`,
                 boxShadow: `0 0 20px ${lv.color}22`,
               }}>
-              <div className="text-4xl mb-2">{lv.emoji}</div>
+              {/* Monster image / emoji */}
+              <div className="w-14 h-14 mb-2 flex items-center justify-center">
+                <span className={`text-4xl absolute transition-opacity duration-300 ${loaded ? 'opacity-0' : 'opacity-100'}`}>
+                  {lv.emoji}
+                </span>
+                <img
+                  src={monsterImgUrl(lv)}
+                  alt={lv.name}
+                  onLoad={() => setLoadedLvs(s => new Set([...s, lv.lv]))}
+                  className={`w-14 h-14 object-contain transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                  style={{ filter: `drop-shadow(0 0 6px ${lv.color}88)` }}
+                />
+              </div>
               <div className="font-bold text-white text-sm">{lv.name}</div>
               <div className="text-xs mt-1" style={{ color: lv.color }}>{lv.description}</div>
               <div className="text-xs text-slate-600 mt-1">⏱ {lv.timeLimit}秒</div>
@@ -204,6 +230,7 @@ export default function Game3Type() {
   const [playerHit, setPlayerHit] = useState(false);
   const [monsterHp, setMonsterHp] = useState(100);
   const [monsterAttacking, setMonsterAttacking] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Refs (closure-safe)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -258,7 +285,7 @@ export default function Game3Type() {
     hpRef.current = MAX_HP; scoreRef.current = 0; comboRef.current = 0;
     qIdxRef.current = 0; monsterHpRef.current = 100;
     setLevel(lv); setDeck(shuffled); setHp(MAX_HP); setScore(0);
-    setCombo(0); setQIdx(0); setMonsterHp(100); setPhase('playing');
+    setCombo(0); setQIdx(0); setMonsterHp(100); setImgLoaded(false); setPhase('playing');
     setTimeout(() => {
       startCanvas();
       setTimeout(() => beginQ(0, shuffled, lv), 200);
@@ -465,7 +492,7 @@ export default function Game3Type() {
               </div>
               {/* Monster emoji — death animation on correct */}
               <motion.div
-                className="text-7xl flex items-center justify-center"
+                className="flex items-center justify-center"
                 animate={
                   status === 'correct' ? {
                     scale:   [approachScale, approachScale * 1.25, approachScale * 0.8, 0.3, 0],
@@ -486,9 +513,19 @@ export default function Game3Type() {
                     ? { duration: status === 'correct' ? 0.75 : 0.7, ease: 'easeInOut' }
                     : { duration: 0.9, ease: 'linear' }
                 }
-                style={{ filter: `drop-shadow(0 0 20px ${level.color}99)` }}
+                style={{ filter: `drop-shadow(0 0 24px ${level.color}aa)` }}
               >
-                {level.emoji}
+                <div className="relative w-24 h-24 flex items-center justify-center">
+                  <span className={`text-7xl absolute transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
+                    {level.emoji}
+                  </span>
+                  <img
+                    src={monsterImgUrl(level)}
+                    alt={level.name}
+                    onLoad={() => setImgLoaded(true)}
+                    className={`w-24 h-24 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                </div>
               </motion.div>
               {/* Hit flash */}
               {monsterHit && status !== 'correct' && (
