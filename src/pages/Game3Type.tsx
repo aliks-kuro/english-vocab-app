@@ -274,8 +274,8 @@ export default function Game3Type() {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       if (canvas && container) {
-        const w = container.clientWidth, h = container.clientHeight || 200;
-        if (canvas.width !== w) { canvas.width = w; canvas.height = h; }
+        const w = container.clientWidth, h = container.clientHeight || 300;
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
         if (w > 0) {
           scrollRef.current = (scrollRef.current + 0.0035) % 1;
           const ctx = canvas.getContext('2d');
@@ -436,8 +436,8 @@ export default function Game3Type() {
   const timerPct = (timeLeft / level.timeLimit) * 100;
   const timerColor = timerPct > 50 ? level.color : timerPct > 25 ? '#fbbf24' : '#f87171';
   const rawTimeProgress = level.timeLimit > 0 ? Math.max(0, Math.min(1, 1 - timeLeft / level.timeLimit)) : 0;
-  const approachScale = 1 + rawTimeProgress * 1.5;
-  const approachY = rawTimeProgress * 28;
+  const approachScale = 1 + rawTimeProgress * 1.8;
+  const approachY = rawTimeProgress * 70;
 
   return (
     <div className="min-h-screen flex flex-col pb-24 overflow-hidden relative select-none" style={{ background: `
@@ -490,7 +490,7 @@ export default function Game3Type() {
       </div>
 
       {/* Dungeon canvas */}
-      <div ref={containerRef} className="relative mx-3 mt-2 rounded-2xl overflow-hidden shrink-0" style={{ height: 200 }}>
+      <div ref={containerRef} className="relative mx-3 mt-2 rounded-2xl overflow-hidden flex-1" style={{ minHeight: 300, maxHeight: 520 }}>
         <canvas ref={canvasRef} className="absolute inset-0" style={{ display: 'block', width: '100%', height: '100%' }} />
 
         {/* Monster */}
@@ -500,27 +500,31 @@ export default function Game3Type() {
             transition={{ duration: 0.4 }}>
             <div className="relative">
               {/* Monster HP bar */}
-              <div className="w-24 h-2 bg-black/60 rounded-full mb-2 mx-auto overflow-hidden">
+              <div className="w-36 h-2.5 bg-black/60 rounded-full mb-3 mx-auto overflow-hidden">
                 <motion.div className="h-full rounded-full"
                   animate={{ width: `${monsterHp}%` }}
                   style={{ background: `linear-gradient(90deg, ${level.color}, ${level.color}99)` }} />
               </div>
               {/* Monster emoji — death animation on correct */}
               <motion.div
+                key={qIdx}
                 className="flex items-center justify-center"
+                initial={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
                 animate={
                   status === 'correct' ? {
                     scale:   [approachScale, approachScale * 1.25, approachScale * 0.8, 0.3, 0],
                     rotate:  [0, -12, 15, 45, 180],
-                    y:       [approachY, approachY - 15, approachY - 8, -45, -90],
+                    y:       [approachY, approachY - 20, approachY - 10, -60, -120],
                     opacity: [1, 1, 1, 0.5, 0],
                   } : monsterAttacking ? {
-                    scale:   [approachScale, approachScale * 1.6, approachScale * 1.9, approachScale * 1.1, approachScale],
-                    y:       [approachY, approachY + 25, approachY + 55, approachY + 18, approachY],
+                    scale:   [approachScale, approachScale * 1.6, approachScale * 2.0, approachScale * 1.1, approachScale],
+                    y:       [approachY, approachY + 35, approachY + 90, approachY + 25, approachY],
                     rotate:  [0, -12, 12, -6, 0],
+                    opacity: 1,
                   } : {
                     scale: approachScale,
                     y: approachY,
+                    opacity: 1,
                   }
                 }
                 transition={
@@ -528,10 +532,10 @@ export default function Game3Type() {
                     ? { duration: status === 'correct' ? 0.75 : 0.7, ease: 'easeInOut' }
                     : { duration: 0.9, ease: 'linear' }
                 }
-                style={{ filter: `drop-shadow(0 0 24px ${level.color}aa)` }}
+                style={{ filter: `drop-shadow(0 0 32px ${level.color}bb)` }}
               >
-                <div className="relative w-24 h-24">
-                  <span className={`text-7xl absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
+                <div className="relative w-40 h-40">
+                  <span className={`text-8xl absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
                     {level.emoji}
                   </span>
                   <img
@@ -539,7 +543,7 @@ export default function Game3Type() {
                     alt={level.name}
                     onLoad={() => setImgLoaded(true)}
                     onError={() => setImgLoaded(false)}
-                    className={`w-24 h-24 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    className={`w-40 h-40 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                     style={{ mixBlendMode: 'screen' }}
                   />
                 </div>
@@ -671,11 +675,11 @@ export default function Game3Type() {
             <p className="text-xs text-slate-500 mb-1">この意味の英単語を入力</p>
             {current?.definitionJa ? (
               <>
-                <p className="text-white text-lg font-semibold leading-snug">{current.definitionJa}</p>
-                <p className="text-slate-500 text-xs mt-1 leading-relaxed">{current.definition}</p>
+                <p className="text-white text-xl font-semibold leading-snug">{current.definitionJa}</p>
+                <p className="text-slate-400 text-sm mt-1 leading-relaxed">{current.definition}</p>
               </>
             ) : (
-              <p className="text-white text-base">{current?.definition}</p>
+              <p className="text-white text-lg">{current?.definition}</p>
             )}
             {showHint && current && (
               <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
