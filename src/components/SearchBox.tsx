@@ -11,6 +11,7 @@ export default function SearchBox() {
   const [result, setResult] = useState<Word | null>(null);
   const [error, setError] = useState('');
   const [added, setAdded] = useState(false);
+  const [alreadyInList, setAlreadyInList] = useState(false);
   const addWord = useWordStore((s) => s.addWord);
   const words = useWordStore((s) => s.words);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +26,11 @@ export default function SearchBox() {
 
     const searchWord = query.trim();
     setQuery('');
+
+    if (words.some(w => w.word.toLowerCase() === searchWord.toLowerCase())) {
+      setAlreadyInList(true);
+      setTimeout(() => setAlreadyInList(false), 1800);
+    }
     const data = await fetchWordDefinition(searchWord);
     if (!data) {
       setError(`"${searchWord}" は見つかりませんでした`);
@@ -106,6 +112,23 @@ export default function SearchBox() {
           </button>
         </div>
       </form>
+
+      {/* Already-in-list flash */}
+      <AnimatePresence>
+        {alreadyInList && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl"
+            style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)' }}
+          >
+            <span className="text-green-400 text-sm">✓</span>
+            <span className="text-green-300 text-sm">マイリストに追加済みです</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Auto-add explanation */}
       <p className="text-xs mt-2 px-1 leading-relaxed" style={{ color: 'rgba(165,180,252,0.65)' }}>
