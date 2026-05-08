@@ -256,6 +256,17 @@ export default function Game3Type() {
 
   useEffect(() => { if (words.length === 0) navigate('/'); }, []);
 
+  // Global Enter key to advance after timeout
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && statusRef.current === 'timeout') {
+        handleTimeoutContinue();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   /* Canvas loop */
   function startCanvas() {
     stopCanvas();
@@ -614,10 +625,13 @@ export default function Game3Type() {
                 正解: <span className="text-white font-mono font-bold text-xl">{current.word}</span>
               </div>
               {status === 'timeout' && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                  className="mt-3 text-xs text-slate-500 border border-slate-600 px-3 py-1 rounded-full">
-                  Enter / タップで次へ
-                </motion.div>
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+                  onClick={handleTimeoutContinue}
+                  className="mt-4 px-6 py-2.5 rounded-xl font-bold text-base text-white transition-all active:scale-95"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)', boxShadow: '0 0 20px rgba(124,58,237,0.6)' }}>
+                  次の問題へ →
+                </motion.button>
               )}
             </motion.div>
           )}
