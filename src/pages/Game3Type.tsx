@@ -424,7 +424,6 @@ export default function Game3Type() {
   const current = deck[qIdx];
   const timerPct = (timeLeft / level.timeLimit) * 100;
   const timerColor = timerPct > 50 ? level.color : timerPct > 25 ? '#fbbf24' : '#f87171';
-  const comboMult = combo >= 6 ? '×3.0' : combo >= 4 ? '×2.0' : combo >= 2 ? '×1.5' : null;
   const rawTimeProgress = level.timeLimit > 0 ? Math.max(0, Math.min(1, 1 - timeLeft / level.timeLimit)) : 0;
   const approachScale = 1 + rawTimeProgress * 1.5;
   const approachY = rawTimeProgress * 28;

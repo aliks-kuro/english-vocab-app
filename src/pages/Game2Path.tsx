@@ -154,7 +154,7 @@ function drawTrolleyTPS(
    Option signs on rails (bigger)
 ══════════════════════════════════════════ */
 function drawOptionSigns(
-  ctx: CanvasRenderingContext2D, W: number, H: number,
+  ctx: CanvasRenderingContext2D, _W: number, _H: number,
   VP: { x: number; y: number }, GY: number, GAUGE: number,
   laneCount: number, options: string[],
   selectedLane: number, correctIdx: number, judging: boolean,
