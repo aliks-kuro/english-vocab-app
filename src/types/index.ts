@@ -7,6 +7,8 @@ export interface Word {
   definitionJa?: string;
   example?: string;
   categories: string[];
+  tags?: string[];
+  custom?: boolean;
   known: boolean;
   addedAt: number;
 }

@@ -3,9 +3,10 @@ import { useWordStore } from '../store/wordStore';
 
 const navItems = [
   { path: '/', label: 'ホーム', icon: '🏠' },
+  { path: '/add', label: '単語追加', icon: '➕' },
   { path: '/test', label: '単語テスト', icon: '📚' },
   { path: '/game1', label: 'アナグラム', icon: '🎯' },
-  { path: '/game2', label: 'レールゲーム', icon: '🚀' },
+  { path: '/game2', label: 'レール', icon: '🚡' },
   { path: '/game3', label: 'タイピング', icon: '⌨️' },
   { path: '/list', label: 'マイリスト', icon: '📝' },
 ];

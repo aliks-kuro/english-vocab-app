@@ -44,9 +44,13 @@ function diffOf(word: string) {
 }
 
 function wordsForLevel(words: Word[], lv: number): Word[] {
-  const primary = words.filter(w => diffOf(w.word) === lv);
-  if (primary.length >= 3) return primary;
-  return [...words].sort((a, b) => Math.abs(diffOf(a.word) - lv) - Math.abs(diffOf(b.word) - lv));
+  const custom = words.filter(w => w.custom);
+  const nonCustom = words.filter(w => !w.custom);
+  const primary = nonCustom.filter(w => diffOf(w.word) === lv);
+  const base = primary.length >= 3
+    ? primary
+    : [...nonCustom].sort((a, b) => Math.abs(diffOf(a.word) - lv) - Math.abs(diffOf(b.word) - lv));
+  return [...base, ...custom];
 }
 
 /* ── Dungeon canvas ─────────────────────────────────────────── */

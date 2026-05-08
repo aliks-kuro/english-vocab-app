@@ -13,6 +13,7 @@ const modes = [
 
 export default function Home() {
   const count = useWordStore((s) => s.words.length);
+  const customCount = useWordStore((s) => s.words.filter(w => w.custom).length);
 
   return (
     <div className="min-h-screen pb-24" style={{ background: `
@@ -44,6 +45,33 @@ export default function Home() {
 
         {/* Search */}
         <SearchBox />
+
+        {/* Manual add card */}
+        <Link to="/add"
+          className="flex items-center gap-4 rounded-2xl px-5 py-4 transition-all active:scale-95 hover:brightness-125"
+          style={{
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(6,182,212,0.12))',
+            border: '1.5px solid rgba(16,185,129,0.35)',
+            boxShadow: '0 4px 24px rgba(16,185,129,0.10), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(16,185,129,0.25)', border: '1px solid rgba(16,185,129,0.4)' }}>
+            <span className="text-xl">✏️</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-sm">単語を手動追加</p>
+            <p className="text-slate-400 text-xs mt-0.5">辞書にない単語や自分専用の単語を登録</p>
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-0.5">
+            {customCount > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(16,185,129,0.25)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.4)' }}>
+                {customCount}語
+              </span>
+            )}
+            <span className="text-emerald-400/60 text-sm">→</span>
+          </div>
+        </Link>
 
         {/* Mode Buttons */}
         <div>

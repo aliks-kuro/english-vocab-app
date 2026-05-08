@@ -5,6 +5,7 @@ import Game1Anagram from './pages/Game1Anagram';
 import Game2Path from './pages/Game2Path';
 import Game3Type from './pages/Game3Type';
 import MyWordList from './pages/MyWordList';
+import AddWord from './pages/AddWord';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/game2" element={<Game2Path />} />
         <Route path="/game3" element={<Game3Type />} />
         <Route path="/list" element={<MyWordList />} />
+        <Route path="/add" element={<AddWord />} />
       </Routes>
     </BrowserRouter>
   );

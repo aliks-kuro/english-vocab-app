@@ -8,29 +8,53 @@ type Filter = 'all' | 'known' | 'unknown';
 export default function MyWordList() {
   const { words, removeWord, updateWord, resetKnownStatus } = useWordStore();
   const [filter, setFilter] = useState<Filter>('all');
+  const [customOnly, setCustomOnly] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editDef, setEditDef] = useState('');
   const [editDefJa, setEditDefJa] = useState('');
+  const [editTagInput, setEditTagInput] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+
+  const customWords = words.filter(w => w.custom);
+  const allTags = [...new Set(customWords.flatMap(w => w.tags ?? []))].sort();
 
   const filtered = words.filter((w) => {
     if (filter === 'known' && !w.known) return false;
     if (filter === 'unknown' && w.known) return false;
+    if (customOnly && !w.custom) return false;
+    if (selectedTag && !(w.tags ?? []).includes(selectedTag)) return false;
     if (search && !w.word.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   const knownCount = words.filter((w) => w.known).length;
+  const customCount = customWords.length;
 
-  function startEdit(id: string, def: string, defJa: string | undefined) {
+  function startEdit(id: string, def: string, defJa: string | undefined, tags: string[] = []) {
     setEditing(id);
     setEditDef(def);
     setEditDefJa(defJa ?? '');
+    setEditTags(tags);
+    setEditTagInput('');
+  }
+
+  function commitEditTag() {
+    const t = editTagInput.trim().replace(/^#/, '');
+    if (t && !editTags.includes(t)) setEditTags(prev => [...prev, t]);
+    setEditTagInput('');
   }
 
   function saveEdit(id: string) {
-    updateWord(id, { definition: editDef.trim(), definitionJa: editDefJa.trim() || undefined });
+    const updates: Parameters<typeof updateWord>[1] = {
+      definition: editDef.trim(),
+      definitionJa: editDefJa.trim() || undefined,
+    };
+    const word = words.find(w => w.id === id);
+    if (word?.custom) updates.tags = editTags;
+    updateWord(id, updates);
     setEditing(null);
   }
 
@@ -48,7 +72,7 @@ export default function MyWordList() {
       </div>
 
       {/* Search + filter */}
-      <div className="px-4 space-y-3">
+      <div className="px-4 space-y-2.5">
         <input
           type="text"
           value={search}
@@ -56,6 +80,7 @@ export default function MyWordList() {
           placeholder="単語を検索..."
           className="w-full glass rounded-xl px-4 py-2.5 text-white placeholder-slate-500 outline-none border border-white/10 focus:border-indigo-500 transition-all"
         />
+        {/* Knowledge filter */}
         <div className="flex gap-2">
           {(['all', 'unknown', 'known'] as Filter[]).map((f) => (
             <button
@@ -68,6 +93,34 @@ export default function MyWordList() {
             </button>
           ))}
         </div>
+        {/* Custom only toggle */}
+        {customCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => { setCustomOnly(!customOnly); setSelectedTag(null); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
+              style={{
+                background: customOnly ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.06)',
+                border: `1px solid ${customOnly ? 'rgba(16,185,129,0.6)' : 'rgba(255,255,255,0.1)'}`,
+                color: customOnly ? '#6ee7b7' : '#64748b',
+              }}>
+              ✏️ 自作のみ ({customCount})
+            </button>
+            {/* Tag filters — shown only when customOnly is active */}
+            {customOnly && allTags.map(t => (
+              <button key={t}
+                onClick={() => setSelectedTag(selectedTag === t ? null : t)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                style={{
+                  background: selectedTag === t ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.10)',
+                  border: `1px solid ${selectedTag === t ? 'rgba(16,185,129,0.7)' : 'rgba(16,185,129,0.25)'}`,
+                  color: selectedTag === t ? '#6ee7b7' : '#4ade80aa',
+                }}>
+                #{t}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Word list */}
@@ -115,11 +168,12 @@ export default function MyWordList() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex gap-1">
-                      {word.categories.slice(0, 1).map((c) => (
-                        <span key={c} className="text-xs bg-white/10 text-slate-500 px-1.5 py-0.5 rounded-full">{c}</span>
-                      ))}
-                    </div>
+                    {word.custom && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(16,185,129,0.18)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                        自作
+                      </span>
+                    )}
                     <span className="text-slate-600 text-xs">{expanded === word.id ? '▲' : '▼'}</span>
                   </div>
                 </button>
@@ -158,6 +212,34 @@ export default function MyWordList() {
                                 className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500 resize-none transition-all"
                               />
                             </div>
+                            {word.custom && (
+                              <div>
+                                <p className="text-slate-500 text-xs mb-1">タグ</p>
+                                <div className="bg-white/5 border border-white/15 rounded-lg px-3 py-2 focus-within:border-indigo-500 transition-all">
+                                  <div className="flex flex-wrap gap-1 mb-1">
+                                    {editTags.map(t => (
+                                      <span key={t} className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full"
+                                        style={{ background: 'rgba(16,185,129,0.18)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                        #{t}
+                                        <button type="button" onClick={() => setEditTags(prev => prev.filter(x => x !== t))}
+                                          className="hover:text-white ml-0.5 leading-none">×</button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <input
+                                    type="text" value={editTagInput}
+                                    onChange={e => setEditTagInput(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitEditTag(); }
+                                      if (e.key === 'Backspace' && editTagInput === '') setEditTags(p => p.slice(0, -1));
+                                    }}
+                                    onBlur={commitEditTag}
+                                    placeholder="タグを追加…"
+                                    className="bg-transparent outline-none text-white text-xs placeholder-slate-600 w-full"
+                                  />
+                                </div>
+                              </div>
+                            )}
                             <div className="flex gap-2 pt-1">
                               <button
                                 onClick={() => saveEdit(word.id)}
@@ -184,9 +266,19 @@ export default function MyWordList() {
                             {word.example && (
                               <p className="text-slate-500 text-xs italic">"{word.example}"</p>
                             )}
+                            {(word.tags ?? []).length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-0.5">
+                                {(word.tags ?? []).map(t => (
+                                  <span key={t} className="text-xs px-2 py-0.5 rounded-full"
+                                    style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.3)' }}>
+                                    #{t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="flex gap-2 pt-1">
                               <button
-                                onClick={() => startEdit(word.id, word.definition, word.definitionJa)}
+                                onClick={() => startEdit(word.id, word.definition, word.definitionJa, word.tags ?? [])}
                                 className="text-indigo-400/70 hover:text-indigo-400 text-xs transition-all"
                               >
                                 編集
