@@ -33,7 +33,7 @@ const LEVELS: LevelDef[] = [
 ];
 
 function monsterImgUrl(lv: LevelDef) {
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(lv.imgPrompt)}?width=200&height=200&nologo=true&seed=${lv.lv * 31 + 77}&model=turbo`;
+  return `/monsters/lv${lv.lv}.png`;
 }
 
 function diffOf(word: string) {
@@ -187,7 +187,7 @@ function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelD
                   onLoad={() => setLoadedLvs(s => new Set([...s, lv.lv]))}
                   onError={() => {}}
                   className={`w-14 h-14 object-contain transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-                  style={{ filter: `drop-shadow(0 0 6px ${lv.color}88)` }}
+                  style={{ filter: `drop-shadow(0 0 6px ${lv.color}88)`, mixBlendMode: 'screen' }}
                 />
               </div>
               <div className="font-bold text-white text-sm">{lv.name}</div>
@@ -540,6 +540,7 @@ export default function Game3Type() {
                     onLoad={() => setImgLoaded(true)}
                     onError={() => setImgLoaded(false)}
                     className={`w-24 h-24 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    style={{ mixBlendMode: 'screen' }}
                   />
                 </div>
               </motion.div>
