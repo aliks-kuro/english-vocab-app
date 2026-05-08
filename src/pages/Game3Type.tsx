@@ -235,7 +235,6 @@ export default function Game3Type() {
   const [playerHit, setPlayerHit] = useState(false);
   const [monsterHp, setMonsterHp] = useState(100);
   const [monsterAttacking, setMonsterAttacking] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
 
   // Refs (closure-safe)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -301,7 +300,7 @@ export default function Game3Type() {
     hpRef.current = MAX_HP; scoreRef.current = 0; comboRef.current = 0;
     qIdxRef.current = 0; monsterHpRef.current = 100;
     setLevel(lv); setDeck(shuffled); setHp(MAX_HP); setScore(0);
-    setCombo(0); setQIdx(0); setMonsterHp(100); setImgLoaded(false); setPhase('playing');
+    setCombo(0); setQIdx(0); setMonsterHp(100); setPhase('playing');
     setTimeout(() => {
       startCanvas();
       setTimeout(() => beginQ(0, shuffled, lv), 200);
@@ -456,42 +455,54 @@ export default function Game3Type() {
         )}
       </AnimatePresence>
 
-      {/* Top bar */}
-      <div className="px-4 pt-4 flex items-center justify-between shrink-0 relative z-10">
+      {/* Top bar (merged) */}
+      <div className="px-3 pt-3 pb-1 flex items-center justify-between gap-2 shrink-0 relative z-10">
         <button onClick={() => { clearTimer(); stopCanvas(); setPhase('select'); }}
-          className="text-slate-500 hover:text-white text-sm transition-all">← 戻る</button>
-        <div className="flex gap-1">
-          {Array.from({ length: MAX_HP }).map((_, i) => (
-            <motion.span key={i} animate={playerHit && i === hp - 1 ? { scale: [1, 0.3, 1] } : {}}
-              className={`text-lg ${i < hp ? 'text-red-400' : 'opacity-15'}`}
-              style={i < hp ? { filter: 'drop-shadow(0 0 4px rgba(248,113,113,0.7))' } : {}}>♥</motion.span>
-          ))}
+          className="text-slate-500 hover:text-white text-sm transition-all shrink-0">← 戻る</button>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs text-slate-600 shrink-0">{level.emoji} {qIdx + 1}/{deck.length}</span>
+          <div className="flex gap-0.5 shrink-0">
+            {Array.from({ length: MAX_HP }).map((_, i) => (
+              <motion.span key={i} animate={playerHit && i === hp - 1 ? { scale: [1, 0.3, 1] } : {}}
+                className={`text-base ${i < hp ? 'text-red-400' : 'opacity-15'}`}
+                style={i < hp ? { filter: 'drop-shadow(0 0 4px rgba(248,113,113,0.7))' } : {}}>♥</motion.span>
+            ))}
+          </div>
         </div>
-        <span className="text-yellow-400 font-bold">{score}点</span>
-      </div>
-
-      {/* Stage info + combo */}
-      <div className="px-4 mt-1 flex items-center justify-between shrink-0 relative z-10">
-        <span className="text-xs text-slate-600">{level.emoji} {level.name}  {qIdx + 1}/{deck.length}</span>
-        <AnimatePresence>
-          {combo >= 2 && (
-            <motion.span key={combo}
-              initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}
-              className="text-sm font-bold px-2 py-0.5 rounded-full"
-              style={{
-                background: combo >= 6 ? 'linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6)' : combo >= 4 ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.3)',
-                color: combo >= 6 ? '#fff' : combo >= 4 ? '#fbbf24' : '#a78bfa',
-                boxShadow: combo >= 4 ? `0 0 12px ${level.color}66` : 'none',
-              }}>
-              COMBO ×{combo}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <div className="flex items-center gap-2 shrink-0">
+          <AnimatePresence>
+            {combo >= 2 && (
+              <motion.span key={combo}
+                initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: combo >= 6 ? 'linear-gradient(90deg,#f59e0b,#ec4899,#8b5cf6)' : combo >= 4 ? 'rgba(251,191,36,0.3)' : 'rgba(167,139,250,0.3)',
+                  color: combo >= 6 ? '#fff' : combo >= 4 ? '#fbbf24' : '#a78bfa',
+                }}>
+                COMBO×{combo}
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <span className="text-yellow-400 font-bold text-sm">{score}点</span>
+        </div>
       </div>
 
       {/* Dungeon canvas */}
-      <div ref={containerRef} className="relative mx-3 mt-2 rounded-2xl overflow-hidden flex-1" style={{ minHeight: 300, maxHeight: 520 }}>
+      <div ref={containerRef} className="relative mx-2 mt-1 rounded-2xl overflow-hidden flex-1" style={{ minHeight: 380, maxHeight: 720 }}>
         <canvas ref={canvasRef} className="absolute inset-0" style={{ display: 'block', width: '100%', height: '100%' }} />
+
+        {/* Timer overlay */}
+        <div className="absolute top-2 left-3 right-3 z-10 pointer-events-none">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-slate-500">残り時間</span>
+            <span className="font-bold tabular-nums" style={{ color: timerColor }}>{timeLeft}秒</span>
+          </div>
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+            <motion.div className="h-full rounded-full"
+              animate={{ width: `${timerPct}%`, backgroundColor: timerColor }}
+              transition={{ duration: 0.9, ease: 'linear' }} />
+          </div>
+        </div>
 
         {/* Monster */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -505,26 +516,24 @@ export default function Game3Type() {
                   animate={{ width: `${monsterHp}%` }}
                   style={{ background: `linear-gradient(90deg, ${level.color}, ${level.color}99)` }} />
               </div>
-              {/* Monster emoji — death animation on correct */}
+              {/* Monster — scale-only animation (no opacity) to avoid visibility bug */}
               <motion.div
                 key={qIdx}
                 className="flex items-center justify-center"
-                initial={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+                initial={{ scale: 0.5, y: 0, rotate: 0 }}
                 animate={
                   status === 'correct' ? {
-                    scale:   [approachScale, approachScale * 1.25, approachScale * 0.8, 0.3, 0],
-                    rotate:  [0, -12, 15, 45, 180],
-                    y:       [approachY, approachY - 20, approachY - 10, -60, -120],
-                    opacity: [1, 1, 1, 0.5, 0],
+                    scale:  [approachScale, approachScale * 1.3, approachScale * 0.7, 0.15, 0.01],
+                    rotate: [0, -12, 15, 50, 200],
+                    y:      [approachY, approachY - 20, approachY - 10, -70, -140],
                   } : monsterAttacking ? {
-                    scale:   [approachScale, approachScale * 1.6, approachScale * 2.0, approachScale * 1.1, approachScale],
-                    y:       [approachY, approachY + 35, approachY + 90, approachY + 25, approachY],
-                    rotate:  [0, -12, 12, -6, 0],
-                    opacity: 1,
+                    scale:  [approachScale, approachScale * 1.6, approachScale * 2.0, approachScale * 1.1, approachScale],
+                    y:      [approachY, approachY + 35, approachY + 90, approachY + 25, approachY],
+                    rotate: [0, -12, 12, -6, 0],
                   } : {
                     scale: approachScale,
                     y: approachY,
-                    opacity: 1,
+                    rotate: 0,
                   }
                 }
                 transition={
@@ -532,18 +541,13 @@ export default function Game3Type() {
                     ? { duration: status === 'correct' ? 0.75 : 0.7, ease: 'easeInOut' }
                     : { duration: 0.9, ease: 'linear' }
                 }
-                style={{ filter: `drop-shadow(0 0 32px ${level.color}bb)` }}
+                style={{ filter: `drop-shadow(0 0 36px ${level.color}cc)` }}
               >
-                <div className="relative w-40 h-40">
-                  <span className={`text-8xl absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${imgLoaded ? 'opacity-0' : 'opacity-100'}`}>
-                    {level.emoji}
-                  </span>
+                <div className="w-44 h-44">
                   <img
                     src={monsterImgUrl(level)}
                     alt={level.name}
-                    onLoad={() => setImgLoaded(true)}
-                    onError={() => setImgLoaded(false)}
-                    className={`w-40 h-40 object-contain transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    className="w-44 h-44 object-contain"
                     style={{ mixBlendMode: 'screen' }}
                   />
                 </div>
@@ -652,21 +656,8 @@ export default function Game3Type() {
         </AnimatePresence>
       </div>
 
-      {/* Timer bar */}
-      <div className="px-4 mt-2 shrink-0 relative z-10">
-        <div className="flex justify-between text-xs mb-1">
-          <span className="text-slate-600">残り時間</span>
-          <span className="font-bold tabular-nums" style={{ color: timerColor }}>{timeLeft}秒</span>
-        </div>
-        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-          <motion.div className="h-full rounded-full"
-            animate={{ width: `${timerPct}%`, backgroundColor: timerColor }}
-            transition={{ duration: 0.9, ease: 'linear' }} />
-        </div>
-      </div>
-
       {/* Question */}
-      <div className="px-4 mt-3 shrink-0 relative z-10">
+      <div className="px-3 mt-2 shrink-0 relative z-10">
         <AnimatePresence mode="wait">
           <motion.div key={current?.id}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
@@ -694,7 +685,7 @@ export default function Game3Type() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="px-4 mt-3 shrink-0 relative z-10">
+      <form onSubmit={handleSubmit} className="px-3 mt-2 shrink-0 relative z-10">
         <div className="flex rounded-2xl overflow-hidden"
           style={{ border: `2px solid ${status === 'correct' ? level.color : status === 'timeout' || status === 'wrong' ? '#f87171' : `${level.color}66`}`, boxShadow: `0 0 16px ${level.color}22` }}>
           <input ref={inputRef} type="text" value={input}
