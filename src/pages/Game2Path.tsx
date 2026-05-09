@@ -660,10 +660,10 @@ export default function Game2Path() {
     judgingRef.current = true;
 
     if (correct) {
-      sfx.correct();
+      sfx.trolleyCorrect();
       setScore(s => s + 100);
     } else {
-      sfx.wrong();
+      sfx.trolleyWrong();
       sfx.damage();
       setWrongWords(ws => [...ws, {
         word: q.word,

@@ -87,4 +87,41 @@ export const sfx = {
     note(c, freq, 'sine', t, 0.14, 0.28);
     if (n >= 4) note(c, freq * 1.5, 'sine', t + 0.07, 0.12, 0.2);
   },
+
+  // ── Game2 (Trolley) ──────────────────────────────────────────
+  trolleyCorrect() {
+    const c = ac(); if (!c) return;
+    const t = c.currentTime;
+    // Bright arrival bell — ascending ding-ding-ding
+    note(c, 1047, 'sine', t,        0.10, 0.30);
+    note(c, 1319, 'sine', t + 0.07, 0.10, 0.28);
+    note(c, 1568, 'sine', t + 0.14, 0.14, 0.25);
+  },
+
+  trolleyWrong() {
+    const c = ac(); if (!c) return;
+    const t = c.currentTime;
+    // Derailment crash — layered low impact
+    note(c,  80, 'triangle', t,        0.38, 0.45, 35);
+    note(c, 170, 'sawtooth', t,        0.20, 0.38, 65);
+    note(c, 320, 'square',   t + 0.02, 0.10, 0.28, 90);
+  },
+
+  // ── Game3 (Dungeon) ──────────────────────────────────────────
+  dungeonHit() {
+    const c = ac(); if (!c) return;
+    const t = c.currentTime;
+    // Sword/weapon strike — sharp metallic crack + resonance ring
+    note(c, 880, 'sawtooth', t,        0.06, 0.40, 160);
+    note(c, 260, 'triangle', t + 0.03, 0.30, 0.22);
+    note(c, 520, 'sine',     t + 0.01, 0.12, 0.16, 280);
+  },
+
+  dungeonWrong() {
+    const c = ac(); if (!c) return;
+    const t = c.currentTime;
+    // Stone wall thunk — heavy square hit + low thud (not buzzy sawtooth)
+    note(c, 270, 'square', t,        0.13, 0.32, 130);
+    note(c, 120, 'sine',   t + 0.04, 0.24, 0.20,  60);
+  },
 };

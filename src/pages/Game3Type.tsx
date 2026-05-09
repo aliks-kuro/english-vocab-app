@@ -488,7 +488,15 @@ export default function Game3Type() {
     timerRef.current = setInterval(() => {
       const t = timeRef.current - 1; timeRef.current = t; setTimeLeft(t);
       if (t <= Math.ceil(lv.timeLimit * HINT_AT)) setShowHint(true);
-      if (t <= 0) { clearTimer(); if (statusRef.current === 'fighting') takeDamage('timeout', idx, d, lv); }
+      if (t <= 0) {
+        clearTimer();
+        if (statusRef.current === 'fighting') {
+          // Delay by 900 ms to sync with timer-bar CSS transition (duration: 0.9s)
+          setTimeout(() => {
+            if (statusRef.current === 'fighting') takeDamage('timeout', idx, d, lv);
+          }, 900);
+        }
+      }
     }, 1000);
     setTimeout(() => inputRef.current?.focus(), 80);
   }
@@ -546,7 +554,7 @@ export default function Game3Type() {
       setResults([...resultsRef.current]);
       // Combo + score
       comboRef.current += 1; setCombo(comboRef.current);
-      sfx.correct();
+      sfx.dungeonHit();
       if (comboRef.current >= 2) sfx.combo(comboRef.current);
       const mult = comboRef.current >= 6 ? 3.0 : comboRef.current >= 4 ? 2.0 : comboRef.current >= 2 ? 1.5 : 1.0;
       const pts = Math.round(levelRef.current.scoreBase * mult + timeRef.current * 8);
@@ -561,7 +569,7 @@ export default function Game3Type() {
       return;
     }
     // wrong: show × mark, clear input, no HP penalty
-    sfx.wrong();
+    sfx.dungeonWrong();
     setShowBigX(true);
     setInput('');
     setTimeout(() => setShowBigX(false), 700);
