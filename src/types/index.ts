@@ -9,6 +9,7 @@ export interface Word {
   categories: string[];
   tags?: string[];
   custom?: boolean;
+  favorite?: boolean;
   known: boolean;
   addedAt: number;
 }

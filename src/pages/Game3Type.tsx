@@ -219,7 +219,9 @@ function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelD
 /* ── Main Component ─────────────────────────────────────────── */
 export default function Game3Type() {
   const navigate = useNavigate();
-  const words = useWordStore(s => s.words);
+  const allWords = useWordStore(s => s.words);
+  const favoriteOnly = useWordStore(s => s.favoriteOnly);
+  const words = favoriteOnly ? allWords.filter(w => w.favorite) : allWords;
   const [phase, setPhase] = useState<'select' | 'playing' | 'victory' | 'defeat'>('select');
   const [level, setLevel] = useState<LevelDef>(LEVELS[0]);
 

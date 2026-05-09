@@ -20,7 +20,9 @@ function timeLimitForWord(word: string): number {
 
 export default function Game1Anagram() {
   const navigate = useNavigate();
-  const words = useWordStore((s) => s.words);
+  const allWords = useWordStore((s) => s.words);
+  const favoriteOnly = useWordStore((s) => s.favoriteOnly);
+  const words = favoriteOnly ? allWords.filter(w => w.favorite) : allWords;
 
   const [questionIdx, setQuestionIdx] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);

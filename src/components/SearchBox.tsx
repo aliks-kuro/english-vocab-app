@@ -13,6 +13,7 @@ export default function SearchBox() {
   const [added, setAdded] = useState(false);
   const [alreadyInList, setAlreadyInList] = useState(false);
   const addWord = useWordStore((s) => s.addWord);
+  const toggleFavorite = useWordStore((s) => s.toggleFavorite);
   const words = useWordStore((s) => s.words);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +79,21 @@ export default function SearchBox() {
   const alreadyAdded = result
     ? words.some((w) => w.word.toLowerCase() === result.word.toLowerCase())
     : false;
+  const wordInStore = result
+    ? words.find((w) => w.word.toLowerCase() === result.word.toLowerCase())
+    : undefined;
+  const isFav = wordInStore?.favorite ?? false;
+
+  function handleStarToggle() {
+    if (!result) return;
+    if (wordInStore) {
+      toggleFavorite(wordInStore.id);
+    } else {
+      // Add word with favorite: true
+      addWord({ ...result, favorite: true });
+      setAdded(true);
+    }
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -180,16 +196,25 @@ export default function SearchBox() {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={() => handleAddToggle(result)}
-                disabled={alreadyAdded || added}
-                className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-all
-                  ${alreadyAdded || added
-                    ? 'bg-green-500/20 text-green-400 cursor-default'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}
-              >
-                {alreadyAdded || added ? '✓ 追加済み' : '+ 追加'}
-              </button>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <button
+                  onClick={handleStarToggle}
+                  className={`text-2xl transition-all leading-none ${isFav ? 'text-yellow-400' : 'text-slate-600 hover:text-yellow-300'}`}
+                  title={isFav ? 'お気に入り解除' : 'お気に入り登録'}
+                >
+                  {isFav ? '★' : '☆'}
+                </button>
+                <button
+                  onClick={() => handleAddToggle(result)}
+                  disabled={alreadyAdded || added}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-all
+                    ${alreadyAdded || added
+                      ? 'bg-green-500/20 text-green-400 cursor-default'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}
+                >
+                  {alreadyAdded || added ? '✓ 追加済み' : '+ 追加'}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

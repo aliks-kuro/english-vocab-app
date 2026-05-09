@@ -488,7 +488,9 @@ type GameStatus = 'questioning' | 'running' | 'judging' | 'gameover' | 'finished
 
 export default function Game2Path() {
   const navigate = useNavigate();
-  const words = useWordStore(s => s.words);
+  const allWords = useWordStore(s => s.words);
+  const favoriteOnly = useWordStore(s => s.favoriteOnly);
+  const words = favoriteOnly ? allWords.filter(w => w.favorite) : allWords;
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [qIdx, setQIdx] = useState(0);

@@ -6,7 +6,7 @@ import NavBar from '../components/NavBar';
 type Filter = 'all' | 'known' | 'unknown';
 
 export default function MyWordList() {
-  const { words, removeWord, updateWord, resetKnownStatus } = useWordStore();
+  const { words, removeWord, updateWord, toggleFavorite, resetKnownStatus } = useWordStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [customOnly, setCustomOnly] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -18,6 +18,8 @@ export default function MyWordList() {
   const [editTagInput, setEditTagInput] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
 
+  const [favoriteFilter, setFavoriteFilter] = useState(false);
+
   const customWords = words.filter(w => w.custom);
   const allTags = [...new Set(customWords.flatMap(w => w.tags ?? []))].sort();
 
@@ -25,6 +27,7 @@ export default function MyWordList() {
     if (filter === 'known' && !w.known) return false;
     if (filter === 'unknown' && w.known) return false;
     if (customOnly && !w.custom) return false;
+    if (favoriteFilter && !w.favorite) return false;
     if (selectedTag && !(w.tags ?? []).includes(selectedTag)) return false;
     if (search && !w.word.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -32,6 +35,7 @@ export default function MyWordList() {
 
   const knownCount = words.filter((w) => w.known).length;
   const customCount = customWords.length;
+  const favoriteCount = words.filter(w => w.favorite).length;
 
   function startEdit(id: string, def: string, defJa: string | undefined, tags: string[] = []) {
     setEditing(id);
@@ -93,9 +97,19 @@ export default function MyWordList() {
             </button>
           ))}
         </div>
-        {/* Custom only toggle */}
-        {customCount > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Favorite / custom filter row */}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setFavoriteFilter(!favoriteFilter)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
+            style={{
+              background: favoriteFilter ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${favoriteFilter ? 'rgba(251,191,36,0.55)' : 'rgba(255,255,255,0.1)'}`,
+              color: favoriteFilter ? '#fcd34d' : '#64748b',
+            }}>
+            {favoriteFilter ? '★' : '☆'} お気に入り ({favoriteCount})
+          </button>
+          {customCount > 0 && (
             <button
               onClick={() => { setCustomOnly(!customOnly); setSelectedTag(null); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
@@ -106,8 +120,13 @@ export default function MyWordList() {
               }}>
               ✏️ 自作のみ ({customCount})
             </button>
-            {/* Tag filters — shown only when customOnly is active */}
-            {customOnly && allTags.map(t => (
+          )}
+        </div>
+
+        {/* Tag filters — shown only when customOnly is active */}
+        {customOnly && allTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {allTags.map(t => (
               <button key={t}
                 onClick={() => setSelectedTag(selectedTag === t ? null : t)}
                 className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
@@ -148,12 +167,9 @@ export default function MyWordList() {
                 exit={{ opacity: 0, height: 0 }}
                 className={`glass rounded-xl overflow-hidden border ${word.known ? 'border-green-500/30' : 'border-white/10'}`}
               >
-                <button
-                  onClick={() => {
-                    if (editing === word.id) return;
-                    setExpanded(expanded === word.id ? null : word.id);
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left"
+                <div
+                  onClick={() => { if (editing === word.id) return; setExpanded(expanded === word.id ? null : word.id); }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left cursor-pointer"
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${word.known ? 'bg-green-400' : 'bg-slate-600'}`} />
                   <div className="flex-1 min-w-0">
@@ -174,9 +190,16 @@ export default function MyWordList() {
                         自作
                       </span>
                     )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(word.id); }}
+                      className={`text-lg leading-none transition-all ${word.favorite ? 'text-yellow-400' : 'text-slate-600 hover:text-yellow-300'}`}
+                      title={word.favorite ? 'お気に入り解除' : 'お気に入り登録'}
+                    >
+                      {word.favorite ? '★' : '☆'}
+                    </button>
                     <span className="text-slate-600 text-xs">{expanded === word.id ? '▲' : '▼'}</span>
                   </div>
-                </button>
+                </div>
 
                 <AnimatePresence>
                   {expanded === word.id && (

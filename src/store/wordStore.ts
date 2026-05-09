@@ -4,9 +4,12 @@ import type { Word } from '../types';
 
 interface WordStore {
   words: Word[];
+  favoriteOnly: boolean;
   addWord: (word: Word) => void;
   removeWord: (id: string) => void;
   updateWord: (id: string, updates: Partial<Word>) => void;
+  toggleFavorite: (id: string) => void;
+  setFavoriteOnly: (v: boolean) => void;
   markKnown: (id: string) => void;
   markUnknown: (id: string) => void;
   resetKnownStatus: () => void;
@@ -16,6 +19,7 @@ export const useWordStore = create<WordStore>()(
   persist(
     (set) => ({
       words: [],
+      favoriteOnly: false,
       addWord: (word) =>
         set((state) => ({
           words: state.words.some(
@@ -30,6 +34,11 @@ export const useWordStore = create<WordStore>()(
         set((state) => ({
           words: state.words.map((w) => (w.id === id ? { ...w, ...updates } : w)),
         })),
+      toggleFavorite: (id) =>
+        set((state) => ({
+          words: state.words.map((w) => (w.id === id ? { ...w, favorite: !w.favorite } : w)),
+        })),
+      setFavoriteOnly: (v) => set({ favoriteOnly: v }),
       markKnown: (id) =>
         set((state) => ({
           words: state.words.map((w) => (w.id === id ? { ...w, known: true } : w)),

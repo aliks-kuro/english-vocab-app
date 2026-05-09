@@ -14,6 +14,9 @@ const modes = [
 export default function Home() {
   const count = useWordStore((s) => s.words.length);
   const customCount = useWordStore((s) => s.words.filter(w => w.custom).length);
+  const favoriteCount = useWordStore((s) => s.words.filter(w => w.favorite).length);
+  const favoriteOnly = useWordStore((s) => s.favoriteOnly);
+  const setFavoriteOnly = useWordStore((s) => s.setFavoriteOnly);
 
   return (
     <div className="min-h-screen pb-24" style={{ background: `
@@ -75,40 +78,78 @@ export default function Home() {
 
         {/* Mode Buttons */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">🎮</span>
             <span className="text-indigo-200 text-sm font-semibold uppercase tracking-widest">学習モード</span>
             <div className="flex-1 h-px" style={{ background: 'rgba(167,139,250,0.35)' }} />
           </div>
 
+          {/* Favorite-only toggle */}
+          {count > 0 && (
+            <button
+              onClick={() => setFavoriteOnly(!favoriteOnly)}
+              className="w-full flex items-center gap-3 rounded-xl px-4 py-3 mb-3 transition-all active:scale-95"
+              style={{
+                background: favoriteOnly ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.05)',
+                border: `1.5px solid ${favoriteOnly ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.1)'}`,
+              }}>
+              <span className={`text-xl transition-all ${favoriteOnly ? 'text-yellow-400' : 'text-slate-600'}`}>
+                {favoriteOnly ? '★' : '☆'}
+              </span>
+              <div className="flex-1 text-left">
+                <p className={`text-sm font-semibold ${favoriteOnly ? 'text-yellow-300' : 'text-slate-400'}`}>
+                  お気に入り単語のみ出題
+                </p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {favoriteOnly
+                    ? favoriteCount > 0
+                      ? `${favoriteCount}語でゲームに挑戦`
+                      : 'お気に入り登録された単語がありません'
+                    : `お気に入り: ${favoriteCount}語`}
+                </p>
+              </div>
+              <div className={`w-10 h-6 rounded-full transition-all relative ${favoriteOnly ? 'bg-yellow-400' : 'bg-slate-700'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${favoriteOnly ? 'left-5' : 'left-1'}`} />
+              </div>
+            </button>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
-            {modes.map((m) => (
-              <Link
-                key={m.path}
-                to={count === 0 && m.path !== '/list' ? '#' : m.path}
-                onClick={(e) => { if (count === 0 && m.path !== '/list') e.preventDefault(); }}
-                className="rounded-2xl p-5 flex flex-col gap-3 transition-all active:scale-95 hover:brightness-125"
-                style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1.5px solid rgba(255,255,255,0.14)',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
-                  minHeight: '148px',
-                  opacity: count === 0 ? 0.4 : 1,
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
-                <span className="text-5xl leading-none">{m.icon}</span>
-                <div className="flex-1 flex flex-col justify-end gap-0.5">
-                  <span className="text-white font-bold text-base leading-tight">{m.label}</span>
-                  <span className="text-slate-300 text-xs leading-snug">{m.desc}</span>
-                </div>
-              </Link>
-            ))}
+            {modes.map((m) => {
+              const disabled = count === 0 || (favoriteOnly && favoriteCount === 0);
+              return (
+                <Link
+                  key={m.path}
+                  to={disabled ? '#' : m.path}
+                  onClick={(e) => { if (disabled) e.preventDefault(); }}
+                  className="rounded-2xl p-5 flex flex-col gap-3 transition-all active:scale-95 hover:brightness-125"
+                  style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1.5px solid rgba(255,255,255,0.14)',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
+                    minHeight: '148px',
+                    opacity: disabled ? 0.4 : 1,
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  <span className="text-5xl leading-none">{m.icon}</span>
+                  <div className="flex-1 flex flex-col justify-end gap-0.5">
+                    <span className="text-white font-bold text-base leading-tight">{m.label}</span>
+                    <span className="text-slate-300 text-xs leading-snug">{m.desc}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           {count === 0 && (
             <p className="text-center text-indigo-300/50 text-xs mt-3">
               単語を追加するとゲームが解放されます
+            </p>
+          )}
+          {count > 0 && favoriteOnly && favoriteCount === 0 && (
+            <p className="text-center text-yellow-500/60 text-xs mt-3">
+              ★ 単語にお気に入りを登録するとゲームが解放されます
             </p>
           )}
         </div>
