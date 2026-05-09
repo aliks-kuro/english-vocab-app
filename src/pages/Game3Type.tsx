@@ -9,6 +9,11 @@ import NavBar from '../components/NavBar';
 const MAX_HP = 5;
 const HINT_AT = 0.45; // show hint at this fraction of time remaining
 
+interface QuestionResult {
+  word: Word;
+  status: 'correct' | 'timeout';
+}
+
 interface LevelDef {
   lv: number; name: string; emoji: string; color: string;
   timeLimit: number; scoreBase: number; description: string;
@@ -235,6 +240,8 @@ export default function Game3Type() {
   const [playerHit, setPlayerHit] = useState(false);
   const [monsterHp, setMonsterHp] = useState(100);
   const [monsterAttacking, setMonsterAttacking] = useState(false);
+  const [results, setResults] = useState<QuestionResult[]>([]);
+  const resultsRef = useRef<QuestionResult[]>([]);
 
   // Refs (closure-safe)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -300,7 +307,9 @@ export default function Game3Type() {
     hpRef.current = MAX_HP; scoreRef.current = 0; comboRef.current = 0;
     qIdxRef.current = 0; monsterHpRef.current = 100;
     setLevel(lv); setDeck(shuffled); setHp(MAX_HP); setScore(0);
-    setCombo(0); setQIdx(0); setMonsterHp(100); setPhase('playing');
+    setCombo(0); setQIdx(0); setMonsterHp(100);
+    resultsRef.current = []; setResults([]);
+    setPhase('playing');
     setTimeout(() => {
       startCanvas();
       setTimeout(() => beginQ(0, shuffled, lv), 200);
@@ -327,6 +336,9 @@ export default function Game3Type() {
     clearTimer();
     comboRef.current = 0; setCombo(0);
     const newHp = hpRef.current - 1; hpRef.current = newHp;
+    const r: QuestionResult = { word: d[idx], status: reason === 'timeout' ? 'timeout' : 'timeout' };
+    resultsRef.current = [...resultsRef.current, r];
+    setResults([...resultsRef.current]);
     setPlayerHit(true); setTimeout(() => setPlayerHit(false), 700);
     const st = reason === 'timeout' ? 'timeout' : 'wrong';
     setStatus(st); statusRef.current = st;
@@ -366,6 +378,8 @@ export default function Game3Type() {
     const typed = input.trim().toLowerCase();
     if (typed === current.word.toLowerCase()) {
       clearTimer();
+      resultsRef.current = [...resultsRef.current, { word: current, status: 'correct' }];
+      setResults([...resultsRef.current]);
       // Combo + score
       comboRef.current += 1; setCombo(comboRef.current);
       const mult = comboRef.current >= 6 ? 3.0 : comboRef.current >= 4 ? 2.0 : comboRef.current >= 2 ? 1.5 : 1.0;
@@ -394,37 +408,80 @@ export default function Game3Type() {
   /* ── Phase: victory / defeat ── */
   if (phase === 'victory' || phase === 'defeat') {
     const win = phase === 'victory';
+    const correctResults = results.filter(r => r.status === 'correct');
+    const wrongResults   = results.filter(r => r.status === 'timeout');
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 pb-24"
+      <div className="min-h-screen flex flex-col pb-24"
         style={{ background: win
-          ? `radial-gradient(ellipse at 50% 10%, rgba(16,185,129,0.35) 0%, transparent 50%),
-             radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.20) 0%, transparent 40%),
-             #04100a`
-          : `radial-gradient(ellipse at 50% 10%, rgba(220,38,38,0.35) 0%, transparent 50%),
-             radial-gradient(ellipse at 20% 80%, rgba(124,58,237,0.25) 0%, transparent 40%),
-             #100404` }}>
-        <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          className="glass rounded-2xl p-8 text-center max-w-sm w-full">
-          <div className="text-6xl mb-3">{win ? '🏆' : '💀'}</div>
-          <h2 className="text-2xl font-bold mb-1" style={{ color: win ? '#86efac' : '#f87171' }}>
+          ? `radial-gradient(ellipse at 50% 10%, rgba(16,185,129,0.35) 0%, transparent 50%), #04100a`
+          : `radial-gradient(ellipse at 50% 10%, rgba(220,38,38,0.35) 0%, transparent 50%), #100404` }}>
+
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 pt-6 pb-3 text-center shrink-0">
+          <div className="text-5xl mb-1">{win ? '🏆' : '💀'}</div>
+          <h2 className="text-2xl font-bold" style={{ color: win ? '#86efac' : '#f87171' }}>
             {win ? 'ダンジョン制覇！' : '全滅…'}
           </h2>
-          <p className="text-slate-500 text-sm mb-2">{level.emoji} {level.name} を{win ? '全て倒した' : '倒せなかった'}</p>
-          <div className="text-4xl font-bold text-yellow-400 mb-2">{score}点</div>
-          <div className="text-slate-400 text-sm mb-6">
-            {qIdx}/{deck.length}問クリア　最大コンボ: ×{combo}
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => startLevel(level)}
-              className="flex-1 bg-violet-700 hover:bg-violet-600 text-white py-2.5 rounded-xl font-medium transition-all">
-              再挑戦
-            </button>
-            <button onClick={() => setPhase('select')}
-              className="flex-1 glass text-white py-2.5 rounded-xl font-medium transition-all">
-              ステージ選択
-            </button>
+          <p className="text-slate-500 text-sm mt-0.5">{level.emoji} {level.name}</p>
+          <div className="text-3xl font-bold text-yellow-400 mt-1">{score}点</div>
+          <div className="flex justify-center gap-4 mt-2 text-sm">
+            <span className="text-green-400 font-bold">✓ {correctResults.length}問正解</span>
+            <span className="text-red-400 font-bold">✗ {wrongResults.length}問時間切れ</span>
+            <span className="text-slate-500">MAX ×{combo}</span>
           </div>
         </motion.div>
+
+        {/* Results list */}
+        <div className="flex-1 overflow-y-auto px-3 pb-2">
+          {results.length > 0 ? (
+            <div className="space-y-2">
+              {results.map((r, i) => (
+                <motion.div key={i}
+                  initial={{ opacity: 0, x: r.status === 'correct' ? -12 : 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.25 }}
+                  className="flex items-start gap-3 rounded-xl px-3 py-2.5"
+                  style={{
+                    background: r.status === 'correct' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                    border: `1px solid ${r.status === 'correct' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                  }}>
+                  <span className="text-xl font-black mt-0.5 shrink-0"
+                    style={{ color: r.status === 'correct' ? '#4ade80' : '#f87171' }}>
+                    {r.status === 'correct' ? '○' : '✗'}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-white font-mono font-bold text-base leading-tight">
+                      {r.word.word}
+                    </div>
+                    <div className="text-slate-300 text-sm mt-0.5 leading-snug">
+                      {r.word.definitionJa || r.word.definition}
+                    </div>
+                    {r.status === 'timeout' && (
+                      <div className="text-red-400 text-xs mt-0.5">⏰ 時間切れ</div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-slate-600 py-8">問題なし</div>
+          )}
+        </div>
+
+        {/* Buttons */}
+        <div className="px-4 pt-2 pb-1 flex gap-3 shrink-0">
+          <button onClick={() => startLevel(level)}
+            className="flex-1 bg-violet-700 hover:bg-violet-600 text-white py-3 rounded-xl font-medium transition-all active:scale-95">
+            再挑戦
+          </button>
+          <button onClick={() => setPhase('select')}
+            className="flex-1 text-white py-3 rounded-xl font-medium transition-all active:scale-95"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            ステージ選択
+          </button>
+        </div>
+
         <NavBar />
       </div>
     );
