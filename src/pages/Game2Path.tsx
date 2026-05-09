@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWordStore } from '../store/wordStore';
 import { WORD_DATABASE } from '../utils/wordDatabase';
+import { sfx } from '../utils/sound';
 import type { Word } from '../types';
 import NavBar from '../components/NavBar';
 
@@ -610,7 +611,7 @@ export default function Game2Path() {
   function beginQuestion(idx: number, qs: Question[]) {
     if (revivalTimerRef.current) { clearInterval(revivalTimerRef.current); revivalTimerRef.current = null; }
     setRevivalCount(null);
-    if (idx >= qs.length) { stopCanvas(); setGameStatus('finished'); statusRef.current = 'finished'; return; }
+    if (idx >= qs.length) { stopCanvas(); sfx.victory(); setGameStatus('finished'); statusRef.current = 'finished'; return; }
     qIdxRef.current = idx; setQIdx(idx);
     cartTargetRef.current = 0; explodeTRef.current = 0;
     selectedLaneRef.current = -1; judgingRef.current = false;
@@ -626,7 +627,7 @@ export default function Game2Path() {
       if (t <= 0) {
         clearTimer();
         if (statusRef.current === 'questioning') {
-          // Use current lane (default to 0 if none hovered)
+          sfx.timeout();
           const lane = selectedLaneRef.current >= 0 ? selectedLaneRef.current : 0;
           startRunning(lane, idx, qs);
         }
@@ -659,8 +660,11 @@ export default function Game2Path() {
     judgingRef.current = true;
 
     if (correct) {
+      sfx.correct();
       setScore(s => s + 100);
     } else {
+      sfx.wrong();
+      sfx.damage();
       setWrongWords(ws => [...ws, {
         word: q.word,
         correct: q.options[q.correctIdx] ?? '',
@@ -672,6 +676,7 @@ export default function Game2Path() {
       setShakeLives(true); setTimeout(() => setShakeLives(false), 600);
       if (nl < 0) {
         livesRef.current = 0;
+        sfx.defeat();
         setGameStatus('judging'); statusRef.current = 'judging';
         setTimeout(() => { stopCanvas(); setGameStatus('gameover'); statusRef.current = 'gameover'; }, 1800);
         return;

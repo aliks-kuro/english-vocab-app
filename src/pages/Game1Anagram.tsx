@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWordStore } from '../store/wordStore';
+import { sfx } from '../utils/sound';
 import NavBar from '../components/NavBar';
 
 interface Tile {
@@ -93,6 +94,7 @@ export default function Game1Anagram() {
   function loadQuestion(idx: number) {
     if (idx >= shuffledWords.current.length) {
       stopAnim(); clearTimer();
+      sfx.victory();
       setGameStatus('finished'); statusRef.current = 'finished';
       return;
     }
@@ -150,6 +152,7 @@ export default function Game1Anagram() {
         clearTimer();
         if (statusRef.current === 'playing') {
           stopAnim();
+          sfx.timeout();
           setGameStatus('timeout'); statusRef.current = 'timeout';
           setTimeout(() => advance(idx + 1), 1600);
         }
@@ -186,14 +189,18 @@ export default function Game1Anagram() {
       if (newSelected.length === target.length) {
         // Word complete!
         clearTimer(); stopAnim();
+        sfx.correct();
         const pts = 100;
         scoreRef.current += pts;
         setScore(scoreRef.current);
         setGameStatus('correct'); statusRef.current = 'correct';
         setTimeout(() => advance(qIdxRef.current + 1), 1500);
+      } else {
+        sfx.tileClick();
       }
     } else {
       // Wrong character!
+      sfx.wrong();
       setShowBigX(true);
       setShakeLives(true);
       const newLives = livesRef.current - 1;
@@ -207,6 +214,7 @@ export default function Game1Anagram() {
           livesRef.current = 0;
           setLives(0);
           clearTimer(); stopAnim();
+          sfx.defeat();
           gameoverWordRef.current = shuffledWords.current[qIdxRef.current];
           setGameStatus('gameover'); statusRef.current = 'gameover';
         } else {

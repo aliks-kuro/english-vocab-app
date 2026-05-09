@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWordStore } from '../store/wordStore';
+import { sfx } from '../utils/sound';
 import type { Word } from '../types';
 import NavBar from '../components/NavBar';
 
@@ -319,7 +320,7 @@ export default function Game3Type() {
   }
 
   function beginQ(idx: number, d: Word[], lv: LevelDef) {
-    if (idx >= d.length) { clearTimer(); stopCanvas(); setPhase('victory'); return; }
+    if (idx >= d.length) { clearTimer(); stopCanvas(); sfx.victory(); setPhase('victory'); return; }
     qIdxRef.current = idx; setQIdx(idx);
     setInput(''); setShowHint(false);
     monsterHpRef.current = 100; setMonsterHp(100);
@@ -336,6 +337,8 @@ export default function Game3Type() {
 
   function takeDamage(reason: 'timeout' | 'wrong', idx: number, d: Word[], lv: LevelDef) {
     clearTimer();
+    sfx.monsterAttack();
+    setTimeout(() => sfx.damage(), 180);
     comboRef.current = 0; setCombo(0);
     const newHp = hpRef.current - 1; hpRef.current = newHp;
     const r: QuestionResult = { word: d[idx], status: reason === 'timeout' ? 'timeout' : 'timeout' };
@@ -350,6 +353,7 @@ export default function Game3Type() {
     }
     if (newHp <= 0) {
       hpRef.current = 0; setHp(0);
+      sfx.defeat();
       // timeout: show answer first, then defeat on Enter
       if (reason === 'timeout') { setHp(0); return; }
       setTimeout(() => { stopCanvas(); setPhase('defeat'); }, 1900); return;
@@ -384,6 +388,8 @@ export default function Game3Type() {
       setResults([...resultsRef.current]);
       // Combo + score
       comboRef.current += 1; setCombo(comboRef.current);
+      sfx.correct();
+      if (comboRef.current >= 2) sfx.combo(comboRef.current);
       const mult = comboRef.current >= 6 ? 3.0 : comboRef.current >= 4 ? 2.0 : comboRef.current >= 2 ? 1.5 : 1.0;
       const pts = Math.round(levelRef.current.scoreBase * mult + timeRef.current * 8);
       scoreRef.current += pts; setScore(scoreRef.current);
@@ -397,6 +403,7 @@ export default function Game3Type() {
       return;
     }
     // wrong: show × mark, clear input, no HP penalty
+    sfx.wrong();
     setShowBigX(true);
     setInput('');
     setTimeout(() => setShowBigX(false), 700);
