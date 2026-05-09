@@ -59,11 +59,120 @@ function wordsForLevel(words: Word[], lv: number): Word[] {
   return [...base, ...custom];
 }
 
+/* ── Dungeon canvas helpers ──────────────────────────────────── */
+function drawBrickWall(
+  ctx: CanvasRenderingContext2D, W: number, H: number,
+  clip: [number, number][], fromLeft: boolean,
+) {
+  ctx.save();
+  ctx.beginPath();
+  clip.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+  ctx.closePath();
+  ctx.clip();
+
+  // Base stone gradient
+  const base = ctx.createLinearGradient(fromLeft ? 0 : W / 2, 0, fromLeft ? W / 2 : W, 0);
+  base.addColorStop(0, fromLeft ? '#2e2015' : '#16100a');
+  base.addColorStop(1, fromLeft ? '#16100a' : '#2e2015');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
+
+  const ROWS = 13;
+  const BW = Math.max(W * 0.16, 26);
+
+  for (let row = 0; row < ROWS; row++) {
+    const y0 = (row / ROWS) * H;
+    const y1 = ((row + 1) / ROWS) * H;
+    const bh = y1 - y0;
+
+    // Brick face tint (subtle brightness variation per row)
+    const v = Math.sin(row * 4.1 + (fromLeft ? 0 : 1.3)) * 9 + Math.sin(row * 7.9) * 4;
+    const lum = 22 + v;
+    ctx.fillStyle = `rgba(${lum},${lum * 0.80},${lum * 0.58},0.14)`;
+    ctx.fillRect(0, y0 + 1, W, bh - 2);
+
+    // Shadow at bottom of each brick row
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(0, y1 - 3, W, 3);
+
+    // Horizontal mortar line
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(W, y0); ctx.stroke();
+
+    // Vertical mortar (staggered every other row)
+    const stagger = (row % 2) * BW * 0.5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+    ctx.lineWidth = 1;
+    for (let bx = -stagger; bx <= W; bx += BW) {
+      ctx.beginPath(); ctx.moveTo(bx, y0 + 1); ctx.lineTo(bx, y1 - 1); ctx.stroke();
+    }
+
+    // Moss / moisture stain (random per row)
+    if (Math.sin(row * 5.3 + (fromLeft ? 2.0 : 4.2)) > 0.52) {
+      const mx = (fromLeft ? W * 0.55 : W * 0.45) + Math.sin(row * 11.7) * W * 0.28;
+      const my = (y0 + y1) / 2;
+      const mG = ctx.createRadialGradient(mx, my, 0, mx, my, BW * 0.65);
+      mG.addColorStop(0, 'rgba(16,30,8,0.32)');
+      mG.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = mG;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, BW * 0.7, bh * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawTorchStone(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const now = Date.now();
+  const f1 = Math.sin(now * 0.0075 + x * 0.011);
+  const f2 = Math.sin(now * 0.0163 + x * 0.019);
+  const flicker = f1 * 0.26 + f2 * 0.13;
+
+  // Wall glow cast by torch
+  const gr = 62 + flicker * 16;
+  const wg = ctx.createRadialGradient(x, y - 10, 0, x, y, gr);
+  wg.addColorStop(0, `rgba(215,108,22,${0.34 + flicker * 0.09})`);
+  wg.addColorStop(0.45, `rgba(155,52,8,0.13)`);
+  wg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = wg;
+  ctx.fillRect(x - gr, y - gr, gr * 2, gr * 2);
+
+  // Iron bracket
+  ctx.fillStyle = '#3c2810';
+  ctx.fillRect(x - 4, y + 2, 8, 14);
+  // Bowl
+  ctx.fillStyle = '#50341a';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 1, 7, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Bowl rim highlight
+  ctx.strokeStyle = '#7a5230';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.ellipse(x, y, 7, 3.5, 0, 0, Math.PI);
+  ctx.stroke();
+
+  // Flame
+  const fh = 18 + flicker * 8;
+  const fw = 5 + flicker * 2.2;
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = 'rgba(255,105,0,0.85)';
+  const fg = ctx.createRadialGradient(x + f1 * 1.8, y - fh * 0.55, 0.5, x, y - 4, fh);
+  fg.addColorStop(0, 'rgba(255,248,170,0.98)');
+  fg.addColorStop(0.22, 'rgba(255,145,18,0.92)');
+  fg.addColorStop(0.58, 'rgba(215,48,0,0.52)');
+  fg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = fg;
+  ctx.beginPath();
+  ctx.ellipse(x + f1 * 1.5, y - fh * 0.58, fw, fh * 0.74, f1 * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
 /* ── Dungeon canvas ─────────────────────────────────────────── */
 function drawDungeon(ctx: CanvasRenderingContext2D, W: number, H: number, scroll: number) {
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#030210';
-  ctx.fillRect(0, 0, W, H);
 
   const VX = W / 2, VY = H * 0.40;
   const cLT = VX - W * 0.045, cRT = VX + W * 0.045;
@@ -73,84 +182,133 @@ function drawDungeon(ctx: CanvasRenderingContext2D, W: number, H: number, scroll
     left ? cLT + (cLB - cLT) * t : cRT + (cRB - cRT) * t;
   const getY = (t: number) => VY + (H - VY) * t;
 
-  /* Floor */
+  /* ── Ceiling: stone ── */
+  ctx.fillStyle = '#0d0b07';
+  ctx.fillRect(0, 0, W, VY + 2);
+
+  // Ceiling brick rows
+  const CEIL_ROWS = 5;
+  for (let r = 0; r < CEIL_ROWS; r++) {
+    const cy0 = (r / CEIL_ROWS) * VY;
+    const cy1 = ((r + 1) / CEIL_ROWS) * VY;
+    const stagger = (r % 2) * W * 0.13;
+    // brick shading
+    const lum = 18 + Math.sin(r * 5.3) * 5;
+    ctx.fillStyle = `rgba(${lum},${lum * 0.82},${lum * 0.6},0.12)`;
+    ctx.fillRect(0, cy0 + 1, W, cy1 - cy0 - 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(0, cy0); ctx.lineTo(W, cy0); ctx.stroke();
+    ctx.lineWidth = 0.8;
+    for (let bx = -stagger; bx <= W; bx += W * 0.19) {
+      ctx.beginPath(); ctx.moveTo(bx, cy0 + 1); ctx.lineTo(bx, cy1 - 1); ctx.stroke();
+    }
+  }
+  // Top vignette
+  const cGrad = ctx.createLinearGradient(0, 0, 0, VY);
+  cGrad.addColorStop(0, 'rgba(0,0,0,0.5)'); cGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = cGrad; ctx.fillRect(0, 0, W, VY);
+
+  // Stalactites
+  const now = Date.now();
+  const stalXs = [0.13, 0.26, 0.43, 0.57, 0.72, 0.87];
+  for (const fx of stalXs) {
+    const sx = fx * W;
+    const len = 9 + Math.sin(sx * 0.09) * 5;
+    const wd = 3.5 + Math.sin(sx * 0.14) * 1.5;
+    ctx.fillStyle = '#1e1610';
+    ctx.beginPath();
+    ctx.moveTo(sx - wd, VY - 1); ctx.lineTo(sx + wd, VY - 1);
+    ctx.lineTo(sx + wd * 0.22, VY - 1 + len); ctx.lineTo(sx - wd * 0.22, VY - 1 + len);
+    ctx.closePath(); ctx.fill();
+    // Dripping water
+    if (Math.sin(sx * 0.19) > 0.28) {
+      const dp = ((now * 0.00032 + fx * 3.8) % 1) * 26;
+      ctx.fillStyle = 'rgba(60,100,130,0.38)';
+      ctx.beginPath();
+      ctx.ellipse(sx, VY + dp, 1.2, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* ── Walls: stone brick ── */
+  drawBrickWall(ctx, W, H,
+    [[0, 0], [cLT, 0], [cLT, VY], [cLB, H], [0, H]], true);
+  drawBrickWall(ctx, W, H,
+    [[W, 0], [cRT, 0], [cRT, VY], [cRB, H], [W, H]], false);
+
+  /* ── Floor: stone slabs ── */
   const fg = ctx.createLinearGradient(0, VY, 0, H);
-  fg.addColorStop(0, '#1a0b08'); fg.addColorStop(1, '#0a0503');
+  fg.addColorStop(0, '#201508'); fg.addColorStop(1, '#0e0904');
   ctx.fillStyle = fg;
   ctx.beginPath();
   ctx.moveTo(cLT, VY); ctx.lineTo(cRT, VY); ctx.lineTo(cRB, H); ctx.lineTo(cLB, H);
   ctx.fill();
 
-  /* Floor grid */
-  for (let i = 0; i < 9; i++) {
-    const t = ((i / 9) + scroll * 0.5) % 1;
-    if (t < 0.03) continue;
+  // Stone slab horizontal seams (fewer, thicker = realistic slabs)
+  const SLABS = 7;
+  for (let i = 1; i < SLABS; i++) {
+    const t = ((i / SLABS) + scroll * 0.38) % 1;
+    if (t < 0.04 || t > 0.97) continue;
     const y = getY(t), lx = getX(t, true), rx = getX(t, false);
-    ctx.strokeStyle = `rgba(100,40,20,${0.08 + 0.55 * t})`;
-    ctx.lineWidth = 0.5 + t * 2.5;
+    const a = 0.18 + 0.52 * t;
+    // Shadow crack
+    ctx.strokeStyle = `rgba(0,0,0,${a})`;
+    ctx.lineWidth = 1.8 + t * 3.8;
     ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(rx, y); ctx.stroke();
+    // Stone edge highlight
+    ctx.strokeStyle = `rgba(90,62,32,${a * 0.38})`;
+    ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(lx, y - 1); ctx.lineTo(rx, y - 1); ctx.stroke();
   }
 
-  /* Ceiling */
-  ctx.fillStyle = '#050310';
-  ctx.fillRect(0, 0, W, VY);
-
-  /* Left wall */
-  const lw = ctx.createLinearGradient(0, 0, VX, 0);
-  lw.addColorStop(0, '#1c0d08'); lw.addColorStop(1, '#080402');
-  ctx.fillStyle = lw;
-  ctx.beginPath();
-  ctx.moveTo(0, 0); ctx.lineTo(cLT, 0); ctx.lineTo(cLT, VY); ctx.lineTo(cLB, H); ctx.lineTo(0, H);
-  ctx.fill();
-
-  /* Right wall */
-  const rw = ctx.createLinearGradient(VX, 0, W, 0);
-  rw.addColorStop(0, '#080402'); rw.addColorStop(1, '#1c0d08');
-  ctx.fillStyle = rw;
-  ctx.beginPath();
-  ctx.moveTo(W, 0); ctx.lineTo(cRT, 0); ctx.lineTo(cRT, VY); ctx.lineTo(cRB, H); ctx.lineTo(W, H);
-  ctx.fill();
-
-  /* Wall brick seams */
-  for (let i = 1; i < 6; i++) {
-    const y = (i / 6) * H;
-    const t = (y - VY) / (H - VY);
-    const lx = t >= 0 ? getX(t, true) : cLT;
-    const rx = t >= 0 ? getX(t, false) : cRT;
-    ctx.strokeStyle = 'rgba(70,30,15,0.45)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(lx, y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(W, y); ctx.stroke();
+  // Vertical slab divisions
+  for (let col = 1; col < 4; col++) {
+    const frac = col / 4;
+    for (let i = 1; i < SLABS - 1; i++) {
+      const t0 = ((i / SLABS) + scroll * 0.38) % 1;
+      const t1 = (((i + 1) / SLABS) + scroll * 0.38) % 1;
+      if (t0 < 0.04 || t0 > 0.94) continue;
+      const y0 = getY(t0), y1 = getY(Math.min(t1 < t0 ? 1 : t1, 0.98));
+      const lx0 = getX(t0, true), rx0 = getX(t0, false);
+      const lx1 = getX(Math.min(t1 < t0 ? 1 : t1, 0.98), true), rx1 = getX(Math.min(t1 < t0 ? 1 : t1, 0.98), false);
+      const x0 = lx0 + (rx0 - lx0) * frac;
+      const x1 = lx1 + (rx1 - lx1) * frac;
+      ctx.strokeStyle = `rgba(0,0,0,${0.12 + 0.28 * t0})`;
+      ctx.lineWidth = 0.8 + t0 * 1.8;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
   }
 
-  /* Corridor edge lines */
-  ctx.shadowColor = 'rgba(180,70,30,0.6)'; ctx.shadowBlur = 10;
-  ctx.strokeStyle = 'rgba(160,60,25,0.85)'; ctx.lineWidth = 2.5;
+  // Water/moisture pool
+  const pT = 0.70;
+  const pY = getY(pT);
+  const plx = getX(pT, true), prx = getX(pT, false);
+  const pcx = (plx + prx) / 2, pw = (prx - plx) * 0.28;
+  const pG = ctx.createRadialGradient(pcx, pY, 0, pcx, pY, pw);
+  pG.addColorStop(0, 'rgba(30,55,80,0.32)'); pG.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = pG;
+  ctx.beginPath(); ctx.ellipse(pcx, pY, pw, pw * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+
+  /* ── Corridor arch edges (stone) ── */
+  ctx.shadowColor = 'rgba(130,75,22,0.35)'; ctx.shadowBlur = 5;
+  ctx.strokeStyle = 'rgba(70,48,22,0.92)'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(cLT, VY); ctx.lineTo(cLB, H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cRT, VY); ctx.lineTo(cRB, H); ctx.stroke();
   ctx.shadowBlur = 0;
 
-  /* Torches */
-  const t0 = Date.now();
-  const torches = [
-    { x: W * 0.12, y: H * 0.33 }, { x: W * 0.88, y: H * 0.33 },
-    { x: W * 0.08, y: H * 0.66 }, { x: W * 0.92, y: H * 0.66 },
-  ];
-  for (const { x, y } of torches) {
-    const flicker = 0.7 + Math.sin(t0 * 0.006 + x) * 0.3;
-    const r = 48 * flicker;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(255,150,40,${0.5 * flicker})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
-    ctx.fillStyle = `rgba(255,220,90,${0.95 * flicker})`;
-    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
-  }
+  /* ── Torches ── */
+  drawTorchStone(ctx, W * 0.12, H * 0.33);
+  drawTorchStone(ctx, W * 0.88, H * 0.33);
+  drawTorchStone(ctx, W * 0.08, H * 0.64);
+  drawTorchStone(ctx, W * 0.92, H * 0.64);
 
-  /* Vanishing point glow */
-  const vpg = ctx.createRadialGradient(VX, VY, 0, VX, VY, 90);
-  vpg.addColorStop(0, 'rgba(220,60,60,0.14)'); vpg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = vpg; ctx.fillRect(0, 0, W, H);
+  /* ── Deep darkness at vanishing point (abyss, not glow) ── */
+  const dark = ctx.createRadialGradient(VX, VY, 0, VX, VY, W * 0.28);
+  dark.addColorStop(0, 'rgba(0,0,0,0.75)');
+  dark.addColorStop(0.55, 'rgba(0,0,0,0.22)');
+  dark.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = dark; ctx.fillRect(0, 0, W, H * 0.72);
 }
 
 /* ── Level Select ───────────────────────────────────────────── */
@@ -506,12 +664,11 @@ export default function Game3Type() {
 
   return (
     <div className="min-h-screen flex flex-col pb-24 overflow-hidden relative select-none" style={{ background: `
-      radial-gradient(ellipse at 50%  0%,  rgba(180, 50, 30,0.32) 0%, transparent 45%),
-      radial-gradient(ellipse at 10% 50%,  rgba(180, 90, 20,0.22) 0%, transparent 35%),
-      radial-gradient(ellipse at 90% 50%,  rgba(180, 90, 20,0.22) 0%, transparent 35%),
-      radial-gradient(ellipse at 50% 100%, rgba( 80, 20,160,0.45) 0%, transparent 50%),
-      radial-gradient(ellipse at 50%  50%, rgba( 20, 10, 60,0.70) 0%, transparent 55%),
-      #030210` }}>
+      radial-gradient(ellipse at 50%  0%,  rgba( 80, 42, 12,0.60) 0%, transparent 42%),
+      radial-gradient(ellipse at 10% 50%,  rgba( 60, 30,  8,0.40) 0%, transparent 38%),
+      radial-gradient(ellipse at 90% 50%,  rgba( 60, 30,  8,0.40) 0%, transparent 38%),
+      radial-gradient(ellipse at 50% 100%, rgba( 35, 18,  5,0.55) 0%, transparent 45%),
+      #07050200` }}>
 
       {/* Player damage flash */}
       <AnimatePresence>
