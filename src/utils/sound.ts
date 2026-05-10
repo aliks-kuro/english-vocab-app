@@ -88,6 +88,13 @@ export const sfx = {
     if (n >= 4) note(c, freq * 1.5, 'sine', t + 0.07, 0.12, 0.2);
   },
 
+  countdownTick(n: number) {
+    const c = ac(); if (!c) return;
+    // Pitch rises as count decreases → builds tension (5=low, 1=high)
+    const freqs: Record<number, number> = { 5: 370, 4: 415, 3: 466, 2: 523, 1: 622 };
+    note(c, freqs[n] ?? 440, 'sine', c.currentTime, 0.13, 0.30);
+  },
+
   // ── Game2 (Trolley) ──────────────────────────────────────────
   trolleyCorrect() {
     const c = ac(); if (!c) return;

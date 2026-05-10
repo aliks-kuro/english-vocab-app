@@ -311,6 +311,48 @@ function drawDungeon(ctx: CanvasRenderingContext2D, W: number, H: number, scroll
   ctx.fillStyle = dark; ctx.fillRect(0, 0, W, H * 0.72);
 }
 
+/* ── Black background removal ───────────────────────────────── */
+const _imgCache: Map<string, string> = new Map();
+
+function processMonsterBg(src: string): Promise<string> {
+  if (_imgCache.has(src)) return Promise.resolve(_imgCache.get(src)!);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || 512;
+        c.height = img.naturalHeight || 512;
+        const ctx = c.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        const id = ctx.getImageData(0, 0, c.width, c.height);
+        const d = id.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          // Perceptual luminance
+          const lum = (r * 299 + g * 587 + b * 114) / 1000;
+          // Saturation: colorful pixels are likely monster, not background
+          const sat = Math.max(r, g, b) - Math.min(r, g, b);
+          if (lum < 16) {
+            d[i + 3] = 0; // pure black → fully transparent
+          } else if (lum < 44 && sat < 25) {
+            // Dark near-grey edge → soft fade
+            d[i + 3] = Math.round(((lum - 16) / 28) * d[i + 3]);
+          }
+        }
+        ctx.putImageData(id, 0, 0);
+        const url = c.toDataURL('image/png');
+        _imgCache.set(src, url);
+        resolve(url);
+      } catch {
+        resolve(src);
+      }
+    };
+    img.onerror = () => resolve(src);
+    img.src = src;
+  });
+}
+
 /* ── Level Select ───────────────────────────────────────────── */
 function LevelSelect({ words, onSelect }: { words: Word[]; onSelect: (lv: LevelDef) => void }) {
   const [loadedLvs, setLoadedLvs] = useState<Set<number>>(new Set());
@@ -403,6 +445,7 @@ export default function Game3Type() {
   const [monsterAttacking, setMonsterAttacking] = useState(false);
   const [results, setResults] = useState<QuestionResult[]>([]);
   const resultsRef = useRef<QuestionResult[]>([]);
+  const [processedImgs, setProcessedImgs] = useState<Record<number, string>>({});
 
   // Refs (closure-safe)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -422,6 +465,22 @@ export default function Game3Type() {
   const monsterHpRef = useRef(100);
 
   useEffect(() => { if (words.length === 0) navigate('/'); }, []);
+
+  // Pre-process all monster images (remove black background via canvas)
+  useEffect(() => {
+    Promise.all(
+      LEVELS.map(lv =>
+        processMonsterBg(monsterImgUrl(lv)).then(url => [lv.lv, url] as [number, string])
+      )
+    ).then(entries => setProcessedImgs(Object.fromEntries(entries)));
+  }, []);
+
+  // Countdown tick sound (last 5 seconds)
+  useEffect(() => {
+    if (statusRef.current === 'fighting' && timeLeft > 0 && timeLeft <= 5) {
+      sfx.countdownTick(timeLeft);
+    }
+  }, [timeLeft]);
 
   // Global Enter key to advance after timeout
   useEffect(() => {
@@ -776,10 +835,9 @@ export default function Game3Type() {
               >
                 <div className="w-44 h-44">
                   <img
-                    src={monsterImgUrl(level)}
+                    src={processedImgs[level.lv] || monsterImgUrl(level)}
                     alt={level.name}
                     className="w-44 h-44 object-contain"
-                    style={{ mixBlendMode: 'screen' }}
                   />
                 </div>
               </motion.div>
@@ -795,6 +853,36 @@ export default function Game3Type() {
             </div>
           </motion.div>
         </div>
+
+        {/* Countdown (last 5 seconds) */}
+        <AnimatePresence>
+          {status === 'fighting' && timeLeft > 0 && timeLeft <= 5 && (
+            <motion.div
+              key={timeLeft}
+              initial={{ scale: 1.9, opacity: 0 }}
+              animate={{ scale: 1.0, opacity: 1 }}
+              exit={{ scale: 0.55, opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+            >
+              <span style={{
+                fontSize: '9.5rem',
+                fontWeight: 900,
+                lineHeight: 1,
+                fontFamily: 'monospace',
+                color: timeLeft <= 2 ? '#ef4444' : timeLeft === 3 ? '#f97316' : '#fbbf24',
+                textShadow: timeLeft <= 2
+                  ? '0 0 55px rgba(239,68,68,1), 0 0 110px rgba(239,68,68,0.55)'
+                  : timeLeft === 3
+                  ? '0 0 55px rgba(249,115,22,0.95), 0 0 110px rgba(249,115,22,0.5)'
+                  : '0 0 55px rgba(251,191,36,0.9), 0 0 110px rgba(251,191,36,0.45)',
+                WebkitTextStroke: '3px rgba(0,0,0,0.65)',
+              }}>
+                {timeLeft}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Correct ○ mark */}
         <AnimatePresence>
