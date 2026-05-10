@@ -441,7 +441,6 @@ export default function Game3Type() {
   const [attackAnim, setAttackAnim] = useState<{ word: string; id: number } | null>(null);
   const [monsterHit, setMonsterHit] = useState(false);
   const [playerHit, setPlayerHit] = useState(false);
-  const [monsterHp, setMonsterHp] = useState(100);
   const [monsterAttacking, setMonsterAttacking] = useState(false);
   const [results, setResults] = useState<QuestionResult[]>([]);
   const resultsRef = useRef<QuestionResult[]>([]);
@@ -462,7 +461,6 @@ export default function Game3Type() {
   const comboRef = useRef(0);
   const deckRef = useRef<Word[]>([]);
   const levelRef = useRef<LevelDef>(LEVELS[0]);
-  const monsterHpRef = useRef(100);
 
   useEffect(() => { if (words.length === 0) navigate('/'); }, []);
 
@@ -525,9 +523,9 @@ export default function Game3Type() {
     const shuffled = [...available].sort(() => Math.random() - 0.5);
     deckRef.current = shuffled; levelRef.current = lv;
     hpRef.current = MAX_HP; scoreRef.current = 0; comboRef.current = 0;
-    qIdxRef.current = 0; monsterHpRef.current = 100;
+    qIdxRef.current = 0;
     setLevel(lv); setDeck(shuffled); setHp(MAX_HP); setScore(0);
-    setCombo(0); setQIdx(0); setMonsterHp(100);
+    setCombo(0); setQIdx(0);
     resultsRef.current = []; setResults([]);
     setPhase('playing');
     setTimeout(() => {
@@ -540,7 +538,6 @@ export default function Game3Type() {
     if (idx >= d.length) { clearTimer(); stopCanvas(); sfx.victory(); setPhase('victory'); return; }
     qIdxRef.current = idx; setQIdx(idx);
     setInput(''); setShowHint(false);
-    monsterHpRef.current = 100; setMonsterHp(100);
     timeRef.current = lv.timeLimit; setTimeLeft(lv.timeLimit);
     setStatus('fighting'); statusRef.current = 'fighting';
     clearTimer();
@@ -621,7 +618,6 @@ export default function Game3Type() {
       // Attack animation
       setAttackAnim({ word: current.word, id: Date.now() });
       setMonsterHit(true); setTimeout(() => setMonsterHit(false), 500);
-      monsterHpRef.current = 0; setMonsterHp(0);
       setShowBigO(true); setTimeout(() => setShowBigO(false), 900);
       setStatus('correct'); statusRef.current = 'correct';
       setTimeout(() => beginQ(qIdxRef.current + 1, deckRef.current, levelRef.current), 1600);
@@ -800,12 +796,6 @@ export default function Game3Type() {
             animate={monsterHit && status !== 'correct' ? { x: [-8, 8, -6, 6, 0], scale: [1, 1.1, 1] } : {}}
             transition={{ duration: 0.4 }}>
             <div className="relative">
-              {/* Monster HP bar */}
-              <div className="w-36 h-2.5 bg-black/60 rounded-full mb-3 mx-auto overflow-hidden">
-                <motion.div className="h-full rounded-full"
-                  animate={{ width: `${monsterHp}%` }}
-                  style={{ background: `linear-gradient(90deg, ${level.color}, ${level.color}99)` }} />
-              </div>
               {/* Monster — scale-only animation (no opacity) to avoid visibility bug */}
               <motion.div
                 key={qIdx}
